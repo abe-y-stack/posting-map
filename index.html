@@ -5,344 +5,358 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>PostingMap</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500;600&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
-<link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css"/>
 <style>
-:root {
-  --bg: #f5f5f7;
-  --surface: #ffffff;
-  --surface2: #f5f5f7;
-  --border: rgba(0,0,0,.08);
-  --border2: rgba(0,0,0,.14);
-  --text: #1d1d1f;
-  --text2: #6e6e73;
-  --text3: #aeaeb2;
-  --accent: #0071e3;
-  --accent2: #34c759;
-  --danger: #ff3b30;
-  --radius: 14px;
-  --radius-sm: 10px;
-  --shadow: 0 2px 20px rgba(0,0,0,.08);
-  --shadow-lg: 0 8px 40px rgba(0,0,0,.14);
+:root{
+  --bg:#f5f5f7;--surface:#fff;--surface2:#f5f5f7;
+  --border:rgba(0,0,0,.08);--border2:rgba(0,0,0,.16);
+  --text:#1d1d1f;--text2:#6e6e73;--text3:#aeaeb2;
+  --accent:#0071e3;--green:#34c759;--red:#ff3b30;--orange:#ff9500;
+  --r:14px;--r2:10px;
+  --sh:0 2px 16px rgba(0,0,0,.08);--sh2:0 8px 32px rgba(0,0,0,.14);
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;width:100%;overflow:hidden;font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
 
-/* ============ TOP SCREEN ============ */
-#top-screen{position:absolute;inset:0;z-index:5000;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;transition:opacity .4s,transform .4s}
-#top-screen.hide{opacity:0;transform:scale(.97);pointer-events:none}
-.top-logo{font-size:13px;font-weight:500;letter-spacing:.12em;color:var(--text3);text-transform:uppercase;margin-bottom:12px}
-.top-title{font-size:32px;font-weight:600;color:var(--text);letter-spacing:-.02em;margin-bottom:6px}
-.top-sub{font-size:15px;color:var(--text2);margin-bottom:48px;text-align:center;line-height:1.5}
-.top-btn{width:100%;max-width:340px;padding:16px;border-radius:var(--radius);border:none;cursor:pointer;font-family:inherit;font-size:16px;font-weight:600;margin-bottom:12px;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:10px;letter-spacing:-.01em}
-.top-btn.primary{background:var(--accent);color:#fff}
-.top-btn.primary:active{background:#0062c4;transform:scale(.98)}
-.top-btn.secondary{background:var(--surface);color:var(--text);border:1px solid var(--border2)}
-.top-btn.secondary:active{background:var(--surface2);transform:scale(.98)}
-.top-btn .btn-icon{font-size:20px}
-.top-version{margin-top:32px;font-size:12px;color:var(--text3)}
+/* ===== SCREENS ===== */
+.screen{position:absolute;inset:0;display:none;flex-direction:column}
+.screen.active{display:flex}
 
-/* ============ ADMIN SCREEN ============ */
-#admin-screen{position:absolute;inset:0;z-index:4000;background:var(--bg);display:none;flex-direction:column}
-#admin-screen.show{display:flex}
+/* ===== TOP ===== */
+#top{background:var(--bg);align-items:center;justify-content:center;padding:40px 28px}
+.top-logo{font-size:12px;font-weight:600;letter-spacing:.15em;color:var(--text3);text-transform:uppercase;margin-bottom:14px}
+.top-title{font-size:36px;font-weight:700;letter-spacing:-.03em;margin-bottom:8px}
+.top-sub{font-size:15px;color:var(--text2);margin-bottom:52px;text-align:center;line-height:1.6}
+.top-btns{width:100%;max-width:320px;display:flex;flex-direction:column;gap:12px}
+.top-btn{width:100%;padding:17px;border-radius:var(--r);border:none;cursor:pointer;font-family:inherit;font-size:16px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:10px;letter-spacing:-.01em;transition:transform .12s,opacity .12s}
+.top-btn:active{transform:scale(.97);opacity:.85}
+.top-btn.a{background:var(--accent);color:#fff}
+.top-btn.b{background:var(--surface);color:var(--text);border:1px solid var(--border2)}
 
-#admin-header{background:var(--surface);border-bottom:1px solid var(--border);padding:0 20px;height:56px;display:flex;align-items:center;gap:12px;flex-shrink:0;backdrop-filter:blur(20px)}
-.admin-back{width:32px;height:32px;border-radius:50%;border:none;background:var(--surface2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--text2)}
-.admin-back:active{background:var(--border)}
-#admin-header h2{font-size:17px;font-weight:600;flex:1;letter-spacing:-.01em}
-.admin-save-btn{padding:7px 16px;border-radius:99px;border:none;background:var(--accent);color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
-.admin-save-btn:active{background:#0062c4}
-.admin-save-btn:disabled{background:var(--border2);color:var(--text3)}
+/* ===== COMMON HEADER ===== */
+.hdr{background:var(--surface);border-bottom:1px solid var(--border);height:54px;display:flex;align-items:center;padding:0 16px;gap:12px;flex-shrink:0;z-index:100}
+.hdr-back{width:32px;height:32px;border-radius:50%;border:none;background:var(--surface2);cursor:pointer;font-size:16px;color:var(--text2);display:flex;align-items:center;justify-content:center}
+.hdr-back:active{background:var(--border)}
+.hdr-title{font-size:17px;font-weight:600;flex:1;letter-spacing:-.01em}
+.hdr-btn{padding:7px 16px;border-radius:99px;border:none;cursor:pointer;font-family:inherit;font-size:14px;font-weight:600;transition:opacity .12s}
+.hdr-btn:active{opacity:.7}
+.hdr-btn.primary{background:var(--accent);color:#fff}
+.hdr-btn.ghost{background:var(--surface2);color:var(--text2)}
 
-/* Admin tab bar */
-#admin-tabs{display:flex;background:var(--surface2);border-bottom:1px solid var(--border);flex-shrink:0;padding:0 20px;gap:0}
-.admin-tab{flex:1;padding:10px 4px;font-size:13px;font-weight:500;color:var(--text2);border:none;background:none;cursor:pointer;position:relative;font-family:inherit}
-.admin-tab.on{color:var(--accent);font-weight:600}
-.admin-tab.on::after{content:'';position:absolute;bottom:0;left:16px;right:16px;height:2px;background:var(--accent);border-radius:2px}
+/* ===== ADMIN ===== */
+#admin{background:var(--bg)}
+#admin-tabs{display:flex;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0}
+.atab{flex:1;padding:10px;font-size:13px;font-weight:500;color:var(--text2);border:none;background:none;cursor:pointer;font-family:inherit;position:relative;transition:color .15s}
+.atab.on{color:var(--accent);font-weight:600}
+.atab.on::after{content:'';position:absolute;bottom:0;left:20%;right:20%;height:2px;background:var(--accent);border-radius:2px}
+#admin-body{flex:1;overflow:hidden;position:relative}
 
-/* Admin content */
-#admin-content{flex:1;overflow:hidden;display:flex;flex-direction:column}
-
-/* Session panel */
-#panel-session{flex:1;overflow-y:auto;padding:20px}
-.section-label{font-size:12px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;margin-top:20px}
-.section-label:first-child{margin-top:0}
-.card{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);overflow:hidden;margin-bottom:16px}
-.card-row{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border)}
-.card-row:last-child{border-bottom:none}
-.card-row label{font-size:14px;color:var(--text2);min-width:72px;flex-shrink:0}
-.card-input{flex:1;border:none;outline:none;font-size:15px;font-family:inherit;color:var(--text);background:transparent;min-width:0}
-.card-input::placeholder{color:var(--text3)}
-
-/* Color selector */
-.color-row{display:flex;gap:8px;flex-wrap:wrap;padding:14px 16px}
-.color-dot{width:28px;height:28px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:transform .12s}
-.color-dot.sel{border-color:var(--text);transform:scale(1.15)}
-
-/* Member list */
-.member-item{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border)}
-.member-item:last-child{border-bottom:none}
-.member-color-bar{width:4px;height:36px;border-radius:2px;flex-shrink:0}
-.member-info{flex:1;min-width:0}
-.member-name{font-size:15px;font-weight:500}
-.member-area{font-size:12px;color:var(--text2);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.member-del{width:28px;height:28px;border-radius:50%;border:none;background:var(--surface2);color:var(--danger);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.member-del:active{background:#fee}
-.add-member-btn{width:100%;padding:13px;border-radius:var(--radius);border:1.5px dashed var(--border2);background:transparent;color:var(--accent);font-size:14px;font-weight:500;cursor:pointer;font-family:inherit;margin-top:8px}
-.add-member-btn:active{background:var(--surface)}
-
-/* Map panel */
-#panel-map{flex:1;position:relative;display:none}
-#panel-map.show{display:block}
+/* admin panels */
+.apanel{position:absolute;inset:0;overflow-y:auto;padding:20px;display:none}
+.apanel.on{display:block}
+#amap-panel{padding:0;display:none}
+#amap-panel.on{display:block}
 #admin-map{position:absolute;inset:0}
-#map-hint{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);z-index:999;background:rgba(0,0,0,.72);color:#fff;padding:8px 18px;border-radius:99px;font-size:12px;white-space:nowrap;pointer-events:none;backdrop-filter:blur(8px)}
 
-/* ============ STAFF SCREEN ============ */
-#staff-screen{position:absolute;inset:0;z-index:3000;background:var(--bg);display:none;flex-direction:column}
-#staff-screen.show{display:flex}
+.sec-label{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;margin-top:24px}
+.sec-label:first-child{margin-top:0}
+.card{background:var(--surface);border-radius:var(--r);border:1px solid var(--border);overflow:hidden;margin-bottom:0}
+.crow{display:flex;align-items:center;gap:12px;padding:13px 16px;border-bottom:1px solid var(--border)}
+.crow:last-child{border:none}
+.crow label{font-size:13px;color:var(--text2);min-width:68px;flex-shrink:0}
+.cinput{flex:1;border:none;outline:none;font-size:15px;font-family:inherit;color:var(--text);background:transparent;min-width:0}
+.cinput::placeholder{color:var(--text3)}
 
-/* Staff: member picker */
-#member-picker{position:absolute;inset:0;z-index:500;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px)}
-#member-picker.hide{display:none}
-#picker-sheet{background:var(--surface);border-radius:22px 22px 0 0;width:100%;max-width:480px;padding:20px 20px 40px;animation:slideUp .35s cubic-bezier(.32,.72,0,1)}
+/* member list */
+.mitem{display:flex;align-items:center;gap:11px;padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s}
+.mitem:last-child{border:none}
+.mitem:active{background:var(--surface2)}
+.mbar{width:4px;height:38px;border-radius:2px;flex-shrink:0}
+.minfo{flex:1;min-width:0}
+.mname{font-size:15px;font-weight:500}
+.marea{font-size:11px;color:var(--text2);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mdel{width:28px;height:28px;border-radius:50%;border:none;background:var(--surface2);color:var(--red);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.mdel:active{background:#fee2e2}
+.add-btn{width:100%;padding:13px;border-radius:var(--r);border:1.5px dashed var(--border2);background:transparent;color:var(--accent);font-size:14px;font-weight:500;cursor:pointer;font-family:inherit;margin-top:10px;transition:background .1s}
+.add-btn:active{background:var(--surface)}
+
+/* saved sessions */
+.sitem{display:flex;align-items:center;gap:12px;padding:13px 16px;border-bottom:1px solid var(--border);cursor:pointer}
+.sitem:last-child{border:none}
+.sitem:active{background:var(--surface2)}
+.sicon{width:40px;height:40px;border-radius:10px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.sinfo{flex:1;min-width:0}
+.sname{font-size:15px;font-weight:600}
+.smeta{font-size:11px;color:var(--text2);margin-top:2px}
+.sdel{padding:5px 11px;border-radius:99px;border:none;background:#fff1f0;color:var(--red);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;flex-shrink:0}
+.sarr{color:var(--text3);font-size:18px;flex-shrink:0}
+
+/* map toolbar */
+#map-toolbar{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:1000;display:flex;gap:6px;flex-wrap:wrap;justify-content:center;padding:0 12px}
+.mtool{padding:7px 14px;border-radius:99px;border:none;background:rgba(255,255,255,.95);color:var(--text);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:var(--sh);backdrop-filter:blur(8px);white-space:nowrap}
+.mtool.active{background:var(--accent);color:#fff}
+.mtool:active{opacity:.8}
+
+/* member select for map */
+#member-select-bar{position:absolute;bottom:20px;left:16px;right:16px;z-index:1000;background:rgba(255,255,255,.96);border-radius:var(--r);padding:12px 16px;box-shadow:var(--sh2);backdrop-filter:blur(12px)}
+#member-select-bar h4{font-size:12px;color:var(--text2);margin-bottom:10px;font-weight:500}
+#member-btns{display:flex;gap:8px;flex-wrap:wrap}
+.mbtn{padding:7px 14px;border-radius:99px;border:2px solid;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;background:transparent;transition:all .12s}
+.mbtn.sel{color:#fff!important}
+.mbtn:active{opacity:.8}
+
+/* ===== STAFF ===== */
+#staff{background:var(--bg)}
+#picker-overlay{position:absolute;inset:0;z-index:500;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px)}
+#picker-sheet{background:var(--surface);border-radius:22px 22px 0 0;width:100%;max-width:480px;padding:20px 20px 44px;animation:slideUp .3s cubic-bezier(.32,.72,0,1)}
 @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
-.picker-handle{width:36px;height:4px;border-radius:2px;background:var(--border2);margin:0 auto 20px}
-.picker-title{font-size:20px;font-weight:600;letter-spacing:-.02em;margin-bottom:4px}
-.picker-sub{font-size:14px;color:var(--text2);margin-bottom:24px}
-.picker-grid{display:flex;flex-direction:column;gap:10px}
-.picker-btn{display:flex;align-items:center;gap:14px;width:100%;padding:14px 16px;border-radius:var(--radius);border:1.5px solid var(--border);background:var(--surface);cursor:pointer;text-align:left;transition:all .12s;font-family:inherit}
-.picker-btn:active{transform:scale(.98)}
-.picker-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
-.picker-info{flex:1}
-.picker-name{font-size:16px;font-weight:600;color:var(--text)}
-.picker-detail{font-size:12px;color:var(--text2);margin-top:2px}
-.picker-arrow{color:var(--text3);font-size:18px}
+.ph{width:36px;height:4px;border-radius:2px;background:var(--border2);margin:0 auto 20px}
+.pt{font-size:20px;font-weight:700;letter-spacing:-.02em;margin-bottom:4px}
+.ps{font-size:13px;color:var(--text2);margin-bottom:20px}
+.pbtn{display:flex;align-items:center;gap:14px;width:100%;padding:14px 16px;border-radius:var(--r);border:1.5px solid var(--border);background:var(--surface);cursor:pointer;text-align:left;font-family:inherit;margin-bottom:9px;transition:transform .1s}
+.pbtn:last-child{margin-bottom:0}
+.pbtn:active{transform:scale(.98)}
+.pdot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+.pname{font-size:16px;font-weight:600}
+.pdetail{font-size:11px;color:var(--text2);margin-top:2px}
+.parr{color:var(--text3);font-size:20px;margin-left:auto}
 
-/* Staff: header */
-#staff-header{background:var(--surface);border-bottom:1px solid var(--border);padding:0 16px;height:56px;display:flex;align-items:center;gap:10px;flex-shrink:0;backdrop-filter:blur(20px);z-index:100}
-.staff-title{font-size:15px;font-weight:600;flex:1;letter-spacing:-.01em}
+/* staff main */
+#staff-hdr{background:var(--surface);border-bottom:1px solid var(--border);height:54px;display:flex;align-items:center;padding:0 16px;gap:10px;flex-shrink:0;z-index:100}
+.s-title{font-size:15px;font-weight:600;flex:1;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #sync-dot{width:8px;height:8px;border-radius:50%;background:var(--text3);transition:background .3s;flex-shrink:0}
-#sync-dot.green{background:var(--accent2)}
-#sync-dot.red{background:var(--danger)}
+#sync-dot.ok{background:var(--green)}
+#sync-dot.err{background:var(--red)}
+#s-badge{font-size:12px;font-weight:600;color:var(--text2)}
 
-/* remain bar */
-#remain-bar{display:flex;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0}
-.rb{flex:1;padding:6px 4px;text-align:center;cursor:pointer;border-right:1px solid var(--border);transition:background .12s}
+#rbar{display:flex;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto}
+#rbar::-webkit-scrollbar{display:none}
+.rb{flex:1;min-width:70px;padding:5px 4px;text-align:center;cursor:pointer;border-right:1px solid var(--border);transition:background .1s}
 .rb:last-child{border-right:none}
-.rb.active{background:var(--surface2)}
-.rb .rn{font-size:18px;font-weight:700;display:block;letter-spacing:-.02em}
-.rb .rl{font-size:9px;color:var(--text2);display:block;margin-top:1px}
+.rb.me{background:var(--surface2)}
+.rn{font-size:17px;font-weight:700;display:block;letter-spacing:-.02em}
+.rl{font-size:9px;color:var(--text2);display:block;margin-top:1px;white-space:nowrap;overflow:hidden}
 
-#staff-map{position:absolute;left:0;right:0}
-
-/* staff bottom */
-#staff-bot{position:absolute;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);height:60px;display:flex;align-items:center;z-index:100}
+#s-map{position:absolute;left:0;right:0}
+#s-bot{position:absolute;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);height:58px;display:flex;align-items:center;z-index:100}
 .sbb{flex:1;height:100%;border:none;background:none;font-size:10px;color:var(--text2);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-family:inherit}
-.sbb .si{font-size:18px;line-height:1}
+.sbb i{font-size:18px;line-height:1;font-style:normal}
 .sbb:active{background:var(--surface2)}
-.sbb-sep{width:1px;height:28px;background:var(--border)}
+.sbsep{width:1px;height:26px;background:var(--border)}
 
-#gps-btn{position:absolute;right:16px;z-index:200;width:40px;height:40px;border-radius:50%;background:var(--surface);border:1px solid var(--border);box-shadow:var(--shadow);display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer}
+#gps-btn{position:absolute;right:14px;z-index:200;width:42px;height:42px;border-radius:50%;background:var(--surface);border:1px solid var(--border);box-shadow:var(--sh);display:flex;align-items:center;justify-content:center;font-size:20px;cursor:pointer;font-style:normal}
 #gps-btn:active{background:var(--surface2)}
+#s-hint{position:absolute;z-index:200;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.7);color:#fff;padding:7px 18px;border-radius:99px;font-size:12px;white-space:nowrap;pointer-events:none;backdrop-filter:blur(8px);transition:opacity .5s}
+#s-leg{position:absolute;left:12px;z-index:199;background:rgba(255,255,255,.92);border-radius:var(--r2);padding:8px 12px;font-size:10px;border:1px solid var(--border);backdrop-filter:blur(10px);line-height:2}
+.lr{display:flex;align-items:center;gap:6px}
+.ld{width:16px;height:3px;border-radius:2px;flex-shrink:0}
 
-/* staff hint */
-#staff-hint{position:absolute;z-index:200;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.72);color:#fff;padding:6px 16px;border-radius:99px;font-size:11px;white-space:nowrap;pointer-events:none;backdrop-filter:blur(8px);transition:opacity .5s}
+/* ===== MODALS ===== */
+.mbg{display:none;position:absolute;inset:0;z-index:5000;background:rgba(0,0,0,.42);align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.mbg.on{display:flex}
+.mbox{background:var(--surface);border-radius:20px;padding:24px;width:88%;max-width:360px;box-shadow:var(--sh2);animation:popIn .22s cubic-bezier(.32,.72,0,1)}
+@keyframes popIn{from{transform:scale(.92);opacity:0}to{transform:scale(1);opacity:1}}
+.mt{font-size:18px;font-weight:700;margin-bottom:6px;letter-spacing:-.02em}
+.ms{font-size:13px;color:var(--text2);margin-bottom:18px;line-height:1.5}
+.mi{width:100%;padding:12px 14px;border-radius:var(--r2);border:1.5px solid var(--border2);font-size:15px;font-family:inherit;outline:none;margin-bottom:10px;transition:border-color .15s;color:var(--text)}
+.mi:focus{border-color:var(--accent)}
+.mrow{display:flex;gap:10px}
+.mbtn{flex:1;padding:13px;border-radius:var(--r2);border:none;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;transition:opacity .12s}
+.mbtn:active{opacity:.7}
+.mbtn.p{background:var(--accent);color:#fff}
+.mbtn.g{background:var(--surface2);color:var(--text)}
+.mbtn.d{background:#fff1f0;color:var(--red)}
 
-/* ============ MODAL ============ */
-.modal-bg{display:none;position:absolute;inset:0;z-index:6000;background:rgba(0,0,0,.4);align-items:center;justify-content:center;backdrop-filter:blur(4px)}
-.modal-bg.show{display:flex}
-.modal-box{background:var(--surface);border-radius:20px;padding:24px;width:88%;max-width:360px;box-shadow:var(--shadow-lg);animation:popIn .25s cubic-bezier(.32,.72,0,1)}
-@keyframes popIn{from{transform:scale(.9);opacity:0}to{transform:scale(1);opacity:1}}
-.modal-title{font-size:18px;font-weight:700;margin-bottom:6px;letter-spacing:-.02em}
-.modal-sub{font-size:13px;color:var(--text2);margin-bottom:20px;line-height:1.5}
-.modal-input{width:100%;padding:12px 14px;border-radius:var(--radius-sm);border:1.5px solid var(--border2);font-size:15px;font-family:inherit;outline:none;margin-bottom:10px;transition:border-color .15s}
-.modal-input:focus{border-color:var(--accent)}
-.modal-row{display:flex;gap:10px;margin-bottom:10px}
-.modal-btn{flex:1;padding:13px;border-radius:var(--radius-sm);border:none;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .12s}
-.modal-btn.primary{background:var(--accent);color:#fff}
-.modal-btn.primary:active{background:#0062c4}
-.modal-btn.ghost{background:var(--surface2);color:var(--text)}
-.modal-btn.ghost:active{background:var(--border)}
-.modal-btn.danger{background:#fff1f0;color:var(--danger)}
+/* color picker */
+.cdots{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:16px}
+.cdot{width:28px;height:28px;border-radius:50%;cursor:pointer;border:2.5px solid transparent;transition:transform .12s}
+.cdot.on{border-color:var(--text);transform:scale(1.18)}
+
+/* transport */
+.trow{display:flex;gap:8px;margin-bottom:14px}
+.tbtn{flex:1;padding:10px 6px;border-radius:var(--r2);border:1.5px solid var(--border2);background:var(--surface2);color:var(--text2);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;text-align:center;transition:all .12s}
+.tbtn.on{background:var(--accent);color:#fff;border-color:var(--accent)}
 
 /* stat modal */
-.stat-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)}
-.stat-row:last-child{border:none}
-.stat-name{display:flex;align-items:center;gap:8px;font-size:14px}
-.stat-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
-.stat-val{font-size:13px;font-weight:600;color:var(--text)}
-.stat-rem{font-size:11px;color:var(--text2)}
-.big-pct{font-size:48px;font-weight:700;text-align:center;letter-spacing:-.04em;margin-bottom:4px}
-.big-sub{font-size:13px;color:var(--text2);text-align:center;margin-bottom:20px}
+.srow{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)}
+.srow:last-child{border:none}
+.sdot2{width:10px;height:10px;border-radius:50%;margin-right:7px;flex-shrink:0}
+.sname2{display:flex;align-items:center;font-size:14px}
+.sbig{font-size:48px;font-weight:700;text-align:center;letter-spacing:-.04em;margin-bottom:4px}
+.ssub{font-size:13px;color:var(--text2);text-align:center;margin-bottom:18px}
 
-/* leg */
-#staff-leg{position:absolute;left:12px;z-index:199;background:rgba(255,255,255,.92);border-radius:var(--radius-sm);padding:8px 12px;font-size:11px;border:1px solid var(--border);backdrop-filter:blur(10px);line-height:2}
-.leg-row{display:flex;align-items:center;gap:6px}
-.leg-dash{width:18px;height:3px;border-radius:2px;flex-shrink:0}
-
-/* session sessions list */
-.session-item{display:flex;align-items:center;gap:12px;padding:13px 16px;border-bottom:1px solid var(--border);cursor:pointer}
-.session-item:last-child{border-bottom:none}
-.session-item:active{background:var(--surface2)}
-.session-icon{width:40px;height:40px;border-radius:10px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
-.session-info{flex:1;min-width:0}
-.session-name{font-size:15px;font-weight:600}
-.session-meta{font-size:12px;color:var(--text2);margin-top:2px}
-.session-arr{color:var(--text3);font-size:16px}
-.session-del{padding:6px 12px;border-radius:99px;border:none;background:#fff1f0;color:var(--danger);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;flex-shrink:0}
+/* loading overlay */
+#loading{display:none;position:absolute;inset:0;z-index:9000;background:rgba(255,255,255,.9);align-items:center;justify-content:center;flex-direction:column;gap:16px;backdrop-filter:blur(8px)}
+#loading.on{display:flex}
+#loading p{font-size:15px;color:var(--text2)}
+.spin{width:36px;height:36px;border:3px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
 
-<!-- ============ TOP SCREEN ============ -->
-<div id="top-screen">
+<!-- LOADING -->
+<div id="loading"><div class="spin"></div><p id="load-msg">読み込み中...</p></div>
+
+<!-- TOP -->
+<div id="top" class="screen active">
   <div class="top-logo">PostingMap</div>
-  <h1 class="top-title">ポスティング管理</h1>
+  <h1 class="top-title">ポスティング</h1>
   <p class="top-sub">エリアを設定して<br>チームで効率よく配布</p>
-  <button class="top-btn primary" onclick="showAdmin()">
-    <span class="btn-icon">⚙️</span>管理者モード
-  </button>
-  <button class="top-btn secondary" onclick="showStaff()">
-    <span class="btn-icon">📮</span>配布スタッフとして参加
-  </button>
-  <div class="top-version">PostingMap v2.0</div>
+  <div class="top-btns">
+    <button class="top-btn a" onclick="goAdmin()">⚙️ 管理者モード</button>
+    <button class="top-btn b" onclick="goStaff()">📮 スタッフとして参加</button>
+  </div>
 </div>
 
-<!-- ============ ADMIN SCREEN ============ -->
-<div id="admin-screen">
-  <div id="admin-header">
-    <button class="admin-back" onclick="backToTop()">←</button>
-    <h2>管理者設定</h2>
-    <button class="admin-save-btn" id="admin-save-btn" onclick="saveSession()">保存</button>
+<!-- ADMIN -->
+<div id="admin" class="screen">
+  <div class="hdr">
+    <button class="hdr-back" onclick="goTop()">←</button>
+    <div class="hdr-title" id="admin-title">管理者設定</div>
+    <button class="hdr-btn ghost" onclick="newSession()" style="font-size:13px">＋新規</button>
+    <button class="hdr-btn primary" id="save-btn" onclick="saveSession()">保存</button>
   </div>
   <div id="admin-tabs">
-    <button class="admin-tab on" onclick="switchAdminTab('session')">📋 セッション</button>
-    <button class="admin-tab" onclick="switchAdminTab('map')">🗺️ エリア設定</button>
+    <button class="atab on" onclick="aTab('info')">📋 基本設定</button>
+    <button class="atab" onclick="aTab('map')">🗺 エリア設定</button>
+    <button class="atab" onclick="aTab('sessions')">📂 保存済み</button>
   </div>
-  <div id="admin-content">
-    <!-- セッション設定 -->
-    <div id="panel-session">
-      <div class="section-label">セッション情報</div>
+  <div id="admin-body">
+    <!-- info panel -->
+    <div class="apanel on" id="apanel-info">
+      <div class="sec-label">セッション情報</div>
       <div class="card">
-        <div class="card-row">
-          <label>タイトル</label>
-          <input class="card-input" id="sess-title" placeholder="例: 川越市ポスティング2024" maxlength="40">
-        </div>
-        <div class="card-row">
-          <label>日付</label>
-          <input class="card-input" id="sess-date" type="date">
-        </div>
-        <div class="card-row">
-          <label>合計枚数</label>
-          <input class="card-input" id="sess-total" type="number" placeholder="例: 1000" min="1">
-        </div>
+        <div class="crow"><label>タイトル</label><input class="cinput" id="f-title" placeholder="例: 川越市2024年6月" maxlength="40"></div>
+        <div class="crow"><label>日付</label><input class="cinput" id="f-date" type="date"></div>
+        <div class="crow"><label>合計枚数</label><input class="cinput" id="f-total" type="number" placeholder="例: 1000" min="1"></div>
       </div>
-
-      <div class="section-label">担当メンバー</div>
-      <div class="card" id="member-list-card">
-        <!-- 動的生成 -->
-      </div>
-      <button class="add-member-btn" onclick="showAddMember()">＋ メンバーを追加</button>
-
-      <div class="section-label">保存済みセッション</div>
-      <div class="card" id="saved-sessions-card">
-        <!-- 動的生成 -->
-      </div>
+      <div class="sec-label" style="margin-top:20px">担当メンバー</div>
+      <div class="card" id="m-list"></div>
+      <button class="add-btn" onclick="openAddMember()">＋ メンバーを追加</button>
     </div>
-
-    <!-- エリア設定マップ -->
-    <div id="panel-map">
+    <!-- map panel -->
+    <div id="amap-panel">
       <div id="admin-map"></div>
-      <div id="map-hint">メンバーを選択してエリアを描いてください</div>
+      <div id="map-toolbar">
+        <button class="mtool" id="tool-rect" onclick="activateDraw('rect')">⬜ 四角形を描く</button>
+        <button class="mtool" id="tool-poly" onclick="activateDraw('poly')">🔷 多角形を描く</button>
+        <button class="mtool" id="tool-clear" onclick="clearSelectedArea()">🗑 選択エリア削除</button>
+      </div>
+      <div id="member-select-bar">
+        <h4>担当メンバーを選んでからエリアを描いてください</h4>
+        <div id="member-btns"></div>
+      </div>
+    </div>
+    <!-- sessions panel -->
+    <div class="apanel" id="apanel-sessions">
+      <div class="sec-label">保存済みセッション</div>
+      <div class="card" id="sess-list"></div>
     </div>
   </div>
 </div>
 
-<!-- ============ STAFF SCREEN ============ -->
-<div id="staff-screen">
-  <!-- Member picker sheet -->
-  <div id="member-picker">
+<!-- STAFF -->
+<div id="staff" class="screen">
+  <!-- picker -->
+  <div id="picker-overlay">
     <div id="picker-sheet">
-      <div class="picker-handle"></div>
-      <div class="picker-title">担当者を選ぶ</div>
-      <div class="picker-sub" id="picker-session-name">セッションを選択してください</div>
-      <div class="picker-grid" id="picker-grid"></div>
+      <div class="ph"></div>
+      <div class="pt">担当者を選ぶ</div>
+      <div class="ps" id="picker-sess-name">読み込み中...</div>
+      <div id="picker-grid"></div>
+      <div id="picker-no-sess" style="display:none;text-align:center;padding:20px;color:var(--text2);font-size:14px">
+        📋 管理者がセッションを作成するまでお待ちください
+      </div>
     </div>
   </div>
-
-  <div id="staff-header">
-    <button style="width:32px;height:32px;border-radius:50%;border:none;background:var(--surface2);cursor:pointer;font-size:14px" onclick="showMemberPicker()">←</button>
-    <div class="staff-title" id="staff-title">PostingMap</div>
+  <!-- main -->
+  <div id="staff-hdr">
+    <button style="width:32px;height:32px;border-radius:50%;border:none;background:var(--surface2);cursor:pointer;font-size:16px" onclick="showPicker()">←</button>
+    <div class="s-title" id="s-title">PostingMap</div>
     <div id="sync-dot"></div>
-    <div id="staff-badge" style="font-size:12px;font-weight:600;color:var(--text2);margin-left:4px">0/0</div>
+    <div id="s-badge" style="margin-left:6px">0/0</div>
   </div>
-
-  <div id="remain-bar"></div>
-  <div id="staff-map"></div>
-  <div id="gps-btn" onclick="centerGPS()">🎯</div>
-  <div id="staff-hint">地図をタップして配布済みマーク</div>
-
-  <div id="staff-leg">
-    <div class="leg-row"><div class="leg-dash" style="background:#22c55e"></div>配布済み</div>
-    <div class="leg-row"><span style="font-size:12px">🏢</span> 集合住宅</div>
-    <div class="leg-row"><span style="font-size:12px">🏭</span> 会社(拡大時)</div>
+  <div id="rbar"></div>
+  <div id="s-map"></div>
+  <i id="gps-btn" onclick="centerGPS()">🎯</i>
+  <div id="s-hint">タップして配布済みマーク</div>
+  <div id="s-leg">
+    <div class="lr"><div class="ld" style="background:#22c55e"></div>配布済み</div>
+    <div class="lr"><span style="font-size:11px">🏢</span>集合住宅</div>
+    <div class="lr"><span style="font-size:11px">🏭</span>会社(拡大時)</div>
   </div>
-
-  <div id="staff-bot">
-    <button class="sbb" onclick="showStatModal()"><span class="si">📊</span>進捗</button>
-    <div class="sbb-sep"></div>
-    <button class="sbb" onclick="undoLast()"><span class="si">↩️</span>戻す</button>
-    <div class="sbb-sep"></div>
-    <button class="sbb" onclick="resetMyArea()"><span class="si">🗑️</span>リセット</button>
-    <div class="sbb-sep"></div>
-    <button class="sbb" onclick="exportCSV()"><span class="si">💾</span>CSV</button>
-  </div>
-</div>
-
-<!-- Add Member Modal -->
-<div class="modal-bg" id="add-member-modal">
-  <div class="modal-box">
-    <div class="modal-title">メンバーを追加</div>
-    <div class="modal-sub">担当者の名前と移動手段を設定します</div>
-    <input class="modal-input" id="new-member-name" placeholder="例: 田中さん" maxlength="20">
-    <div style="display:flex;gap:8px;margin-bottom:14px">
-      <button id="transport-car" class="modal-btn ghost" onclick="selectTransport('car')" style="font-size:13px">🚗 車</button>
-      <button id="transport-bike" class="modal-btn ghost" onclick="selectTransport('bike')" style="font-size:13px">🚲 自転車</button>
-      <button id="transport-walk" class="modal-btn ghost" onclick="selectTransport('walk')" style="font-size:13px">🚶 徒歩</button>
-    </div>
-    <div class="section-label" style="margin-top:0;margin-bottom:10px">カラー</div>
-    <div class="color-row" id="color-picker" style="padding:0;margin-bottom:16px"></div>
-    <div class="modal-row">
-      <button class="modal-btn ghost" onclick="hideAddMember()">キャンセル</button>
-      <button class="modal-btn primary" onclick="addMember()">追加</button>
-    </div>
+  <div id="s-bot">
+    <button class="sbb" onclick="showStat()"><i>📊</i>進捗</button>
+    <div class="sbsep"></div>
+    <button class="sbb" onclick="undoLast()"><i>↩️</i>戻す</button>
+    <div class="sbsep"></div>
+    <button class="sbb" onclick="resetMy()"><i>🗑️</i>リセット</button>
+    <div class="sbsep"></div>
+    <button class="sbb" onclick="centerGPS()"><i>🎯</i>現在地</button>
+    <div class="sbsep"></div>
+    <button class="sbb" onclick="doCSV()"><i>💾</i>CSV</button>
   </div>
 </div>
 
-<!-- Stat Modal -->
-<div class="modal-bg" id="stat-modal" onclick="hideStatModal()">
-  <div class="modal-box" onclick="event.stopPropagation()">
-    <div class="modal-title">📊 進捗レポート</div>
-    <div class="big-pct" id="stat-pct">0%</div>
-    <div class="big-sub" id="stat-sub">集計中...</div>
+<!-- MODALS -->
+<!-- add member -->
+<div class="mbg" id="m-add-modal">
+  <div class="mbox">
+    <div class="mt" id="m-add-title">メンバーを追加</div>
+    <div class="ms">名前・移動手段・カラーを設定</div>
+    <input class="mi" id="nm-name" placeholder="例: 田中さん" maxlength="20">
+    <div class="trow">
+      <button class="tbtn on" id="t-car" onclick="selTransport('car')">🚗 車</button>
+      <button class="tbtn" id="t-bike" onclick="selTransport('bike')">🚲 自転車</button>
+      <button class="tbtn" id="t-walk" onclick="selTransport('walk')">🚶 徒歩</button>
+    </div>
+    <div class="cdots" id="color-dots"></div>
+    <div class="mrow">
+      <button class="mbtn g" onclick="closeAddMember()">キャンセル</button>
+      <button class="mbtn p" onclick="confirmAddMember()">追加</button>
+    </div>
+  </div>
+</div>
+<!-- stat -->
+<div class="mbg" id="stat-modal" onclick="closeStat()">
+  <div class="mbox" onclick="event.stopPropagation()">
+    <div class="mt">📊 進捗レポート</div>
+    <div class="sbig" id="stat-pct">0%</div>
+    <div class="ssub" id="stat-sub">集計中...</div>
     <div id="stat-rows"></div>
-    <div style="margin-top:16px">
-      <button class="modal-btn ghost" style="width:100%" onclick="hideStatModal()">閉じる</button>
+    <button class="mbtn g" style="width:100%;margin-top:14px" onclick="closeStat()">閉じる</button>
+  </div>
+</div>
+<!-- confirm -->
+<div class="mbg" id="confirm-modal">
+  <div class="mbox">
+    <div class="mt" id="cf-title">確認</div>
+    <div class="ms" id="cf-msg">よろしいですか？</div>
+    <div class="mrow">
+      <button class="mbtn g" onclick="closeConfirm()">キャンセル</button>
+      <button class="mbtn d" id="cf-ok">削除</button>
     </div>
   </div>
 </div>
-
-<!-- Confirm Modal -->
-<div class="modal-bg" id="confirm-modal">
-  <div class="modal-box">
-    <div class="modal-title" id="confirm-title">確認</div>
-    <div class="modal-sub" id="confirm-msg">よろしいですか？</div>
-    <div class="modal-row">
-      <button class="modal-btn ghost" onclick="hideConfirm()">キャンセル</button>
-      <button class="modal-btn danger" id="confirm-ok">削除</button>
+<!-- member edit -->
+<div class="mbg" id="m-edit-modal">
+  <div class="mbox">
+    <div class="mt">メンバーを編集</div>
+    <div class="ms">名前・移動手段・枚数を変更できます</div>
+    <input class="mi" id="em-name" placeholder="名前" maxlength="20">
+    <div class="trow">
+      <button class="tbtn" id="et-car" onclick="selEditTransport('car')">🚗 車</button>
+      <button class="tbtn" id="et-bike" onclick="selEditTransport('bike')">🚲 自転車</button>
+      <button class="tbtn" id="et-walk" onclick="selEditTransport('walk')">🚶 徒歩</button>
+    </div>
+    <input class="mi" id="em-target" type="number" placeholder="目標枚数（空欄で自動計算）" min="0">
+    <div class="mrow">
+      <button class="mbtn g" onclick="closeEditMember()">キャンセル</button>
+      <button class="mbtn p" onclick="confirmEditMember()">保存</button>
     </div>
   </div>
 </div>
@@ -351,707 +365,738 @@ html,body{height:100%;width:100%;overflow:hidden;font-family:'Noto Sans JP',sans
 // ============================================================
 // Supabase
 // ============================================================
-const SB_URL = 'https://efznjrngolysrdxnmurp.supabase.co';
-const SB_KEY = 'sb_publishable_kVLg2QozDdBIcLGcpvZwcw_VXwGyFrD';
+const SB = 'https://efznjrngolysrdxnmurp.supabase.co';
+const KEY = 'sb_publishable_kVLg2QozDdBIcLGcpvZwcw_VXwGyFrD';
 
-async function sb(path, opts = {}) {
-  const r = await fetch(`${SB_URL}/rest/v1/${path}`, {
+async function api(path, opt = {}) {
+  const r = await fetch(`${SB}/rest/v1/${path}`, {
     headers: {
-      'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`,
+      'apikey': KEY, 'Authorization': `Bearer ${KEY}`,
       'Content-Type': 'application/json',
-      'Prefer': opts.prefer || 'return=minimal',
-      ...opts.headers
-    }, ...opts
+      'Prefer': opt.prefer || 'return=minimal',
+      ...opt.headers
+    }, ...opt
   });
-  if (opts.json && r.ok) return r.json();
+  if (opt.json) return r.ok ? r.json() : [];
   return r;
 }
 
 // ============================================================
-// COLORS
+// Constants
 // ============================================================
-const COLORS = ['#e53e3e','#c05621','#d69e2e','#276749','#2b6cb0','#553c9a','#b83280','#2c7a7b','#1a365d','#744210'];
-const TRANSPORT_ICON = { car:'🚗', bike:'🚲', walk:'🚶' };
+const COLORS = ['#e53e3e','#c05621','#d69e2e','#276749','#2b6cb0','#553c9a','#b83280','#2c7a7b','#744210','#1a365d'];
+const TI = { car:'🚗', bike:'🚲', walk:'🚶' };
 
 // ============================================================
-// STATE
+// State
 // ============================================================
-let sessions = []; // 保存済みセッション
-let currentSession = null; // { id, title, date, total, members:[{id,name,transport,color,area:null}] }
-let editingMembers = []; // 管理画面の編集中メンバーリスト
-let newMemberTransport = 'car';
-let newMemberColor = COLORS[0];
+let sessions = [];
+let cur = null; // 現在編集中のセッション
+let editMembers = []; // 編集中のメンバー配列
 
-// staff state
-let myMemberIdx = -1;
-let map = null;
-let adminMap = null;
-let markers = []; // per member
-let zonePolys = [];
-let bizLayers = [], bizFetched = {};
-let gpsMarker = null, gpsCircle = null, gpsHeading = null;
-let otherGpsMarkers = {};
+// admin map
+let amap = null;
+let drawHandler = null;
+let selectedMemberId = null;
+let zoneLayerGroup = null;
+
+// staff
+let smap = null;
+let myIdx = -1;
+let sMarkers = [];
+let sZones = [];
+let sBizLayers = [], sBizFetched = {};
+let gpsM = null, gpsC = null, gpsH = null;
+let otherGps = {};
 let isTouching = false;
 let history = [];
-let syncTimer = null;
+let syncTmr = null;
+
+// modal state
+let nmTransport = 'car', nmColor = COLORS[0];
+let emTransport = 'car', emIdx = -1;
+let confirmCb = null;
 
 // ============================================================
-// SCREENS
+// Loading
 // ============================================================
-function showAdmin() {
-  loadSessions();
-  document.getElementById('admin-screen').classList.add('show');
-  document.getElementById('top-screen').classList.add('hide');
-  // 新規セッション用に編集状態をリセット
-  editingMembers = [];
-  document.getElementById('sess-title').value = '';
-  document.getElementById('sess-date').value = new Date().toISOString().slice(0,10);
-  document.getElementById('sess-total').value = '';
+function loading(show, msg = '読み込み中...') {
+  document.getElementById('loading').classList.toggle('on', show);
+  document.getElementById('load-msg').textContent = msg;
+}
+
+// ============================================================
+// Screen navigation
+// ============================================================
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+async function goTop() { showScreen('top'); }
+
+async function goAdmin() {
+  showScreen('admin');
+  loading(true, 'セッションを読み込み中...');
+  await fetchSessions();
+  loading(false);
+  newSession();
+}
+
+async function goStaff() {
+  showScreen('staff');
+  showPicker();
+  loading(true, 'セッションを読み込み中...');
+  await fetchSessions();
+  loading(false);
+  renderPickerGrid();
+}
+
+// ============================================================
+// Supabase: Sessions CRUD
+// ============================================================
+async function fetchSessions() {
+  try {
+    const data = await api('posting_sessions?select=*&order=updated_at.desc', { json: true, prefer: '' });
+    if (Array.isArray(data)) {
+      sessions = data.map(r => ({
+        ...JSON.parse(r.config),
+        _sbId: r.id,
+        _updatedAt: r.updated_at
+      }));
+    }
+  } catch(e) { console.error('fetch sessions:', e); }
+}
+
+async function upsertSession(sess) {
+  const payload = {
+    session_key: sess.id,
+    config: JSON.stringify(sess),
+    title: sess.title || '無題',
+    updated_at: new Date().toISOString()
+  };
+  // session_keyで既存を検索して更新、なければ挿入
+  const existing = await api(`posting_sessions?session_key=eq.${sess.id}&select=id`, { json: true, prefer: '' });
+  if (Array.isArray(existing) && existing.length > 0) {
+    return api(`posting_sessions?session_key=eq.${sess.id}`, {
+      method: 'PATCH',
+      prefer: 'return=minimal',
+      body: JSON.stringify({ config: JSON.stringify(sess), title: sess.title||'無題', updated_at: new Date().toISOString() })
+    });
+  } else {
+    return api('posting_sessions', {
+      method: 'POST',
+      prefer: 'return=minimal',
+      body: JSON.stringify(payload)
+    });
+  }
+}
+
+async function deleteSession(sessId) {
+  return api(`posting_sessions?session_key=eq.${sessId}`, { method: 'DELETE' });
+}
+
+// ============================================================
+// Admin: new session
+// ============================================================
+function newSession() {
+  cur = {
+    id: 'sess_' + Date.now(),
+    title: '', date: new Date().toISOString().slice(0,10),
+    total: '', members: []
+  };
+  editMembers = [];
+  document.getElementById('f-title').value = '';
+  document.getElementById('f-date').value = cur.date;
+  document.getElementById('f-total').value = '';
+  document.getElementById('admin-title').textContent = '新規セッション';
   renderMemberList();
-  renderSavedSessions();
-  initAdminMap();
-}
-
-async function showStaff() {
-  document.getElementById('staff-screen').classList.add('show');
-  document.getElementById('top-screen').classList.add('hide');
-  // ローディング表示
-  const grid = document.getElementById('picker-grid');
-  grid.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text2);font-size:14px">🔄 セッションを読み込み中...</div>';
-  showMemberPicker();
-  await loadSessions(); // 完全に読み込んでからピッカーを更新
-}
-
-function backToTop() {
-  document.getElementById('admin-screen').classList.remove('show');
-  document.getElementById('top-screen').classList.remove('hide');
-  document.getElementById('top-screen').classList.remove('hide');
+  aTab('info');
 }
 
 // ============================================================
-// ADMIN: TABS
+// Admin: load session for editing
 // ============================================================
-function switchAdminTab(tab) {
-  document.querySelectorAll('.admin-tab').forEach((t,i) => t.classList.toggle('on', (i===0&&tab==='session')||(i===1&&tab==='map')));
-  document.getElementById('panel-session').style.display = tab === 'session' ? 'block' : 'none';
-  const pm = document.getElementById('panel-map');
-  pm.classList.toggle('show', tab === 'map');
-  if (tab === 'map' && adminMap) setTimeout(() => adminMap.invalidateSize(), 100);
+function loadSession(sess) {
+  cur = JSON.parse(JSON.stringify(sess));
+  editMembers = cur.members || [];
+  document.getElementById('f-title').value = cur.title || '';
+  document.getElementById('f-date').value = cur.date || '';
+  document.getElementById('f-total').value = cur.total || '';
+  document.getElementById('admin-title').textContent = cur.title || '編集中';
+  renderMemberList();
+  renderSessList();
+  aTab('info');
+  // マップにエリアを再描画
+  if (amap) {
+    zoneLayerGroup.clearLayers();
+    editMembers.forEach(m => { if (m.area) drawMemberZone(m); });
+  }
 }
 
 // ============================================================
-// ADMIN: MAP
+// Admin: save
 // ============================================================
-let drawControl = null;
-let adminZones = {}; // memberId -> L.polygon
+async function saveSession() {
+  const title = document.getElementById('f-title').value.trim();
+  if (!title) { alert('タイトルを入力してください'); return; }
+  if (!editMembers.length) { alert('メンバーを1人以上追加してください'); return; }
 
+  const total = parseInt(document.getElementById('f-total').value) || 0;
+  const perM = total && editMembers.length ? Math.round(total / editMembers.length) : 0;
+
+  cur = {
+    ...cur,
+    title,
+    date: document.getElementById('f-date').value,
+    total,
+    members: editMembers.map(m => ({
+      ...m,
+      target: m.target || perM
+    }))
+  };
+
+  loading(true, '保存中...');
+  try {
+    await upsertSession(cur);
+    await fetchSessions();
+    renderSessList();
+    loading(false);
+    document.getElementById('admin-title').textContent = title;
+    alert(`「${title}」を保存しました ✓\nスタッフ側に即時反映されます。`);
+  } catch(e) {
+    loading(false);
+    alert('保存に失敗しました。通信状況を確認してください。');
+  }
+}
+
+// ============================================================
+// Admin: tabs
+// ============================================================
+function aTab(name) {
+  document.querySelectorAll('.atab').forEach((t,i) => t.classList.toggle('on', ['info','map','sessions'][i]===name));
+  document.getElementById('apanel-info').classList.toggle('on', name==='info');
+  document.getElementById('apanel-sessions').classList.toggle('on', name==='sessions');
+  const mp = document.getElementById('amap-panel');
+  mp.classList.toggle('on', name==='map');
+  if (name === 'map') {
+    if (!amap) initAdminMap();
+    else setTimeout(() => amap.invalidateSize(), 100);
+    renderMemberBtns();
+  }
+  if (name === 'sessions') renderSessList();
+}
+
+// ============================================================
+// Admin map
+// ============================================================
 function initAdminMap() {
-  if (adminMap) return;
-  adminMap = L.map('admin-map', { zoomControl: true, attributionControl: false });
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 20 }).addTo(adminMap);
-  adminMap.setView([35.910, 139.490], 13);
+  amap = L.map('admin-map', { zoomControl: true, attributionControl: false });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 20 }).addTo(amap);
+  amap.setView([35.910, 139.490], 13);
+  zoneLayerGroup = L.layerGroup().addTo(amap);
+  // 既存エリアを描画
+  editMembers.forEach(m => { if (m.area) drawMemberZone(m); });
+  renderMemberBtns();
+}
 
-  // Draw control
-  const drawnItems = new L.FeatureGroup().addTo(adminMap);
-  drawControl = new L.Control.Draw({
-    draw: {
-      polygon: { shapeOptions: { color: '#0071e3', fillOpacity: 0.15, weight: 2 } },
-      rectangle: { shapeOptions: { color: '#0071e3', fillOpacity: 0.15, weight: 2 } },
-      circle: false, marker: false, polyline: false, circlemarker: false
-    },
-    edit: { featureGroup: drawnItems }
-  }).addTo(adminMap);
-
-  adminMap.on(L.Draw.Event.CREATED, e => {
-    const layer = e.layer;
-    const coords = layer.getLatLngs()[0].map(ll => [ll.lat, ll.lng]);
-    // どのメンバーに割り当てるか確認
-    showAssignZone(coords, layer);
+function activateDraw(type) {
+  if (!selectedMemberId) { alert('先にメンバーを選択してください'); return; }
+  if (drawHandler) { drawHandler.disable(); drawHandler = null; }
+  document.getElementById('tool-rect').classList.remove('active');
+  document.getElementById('tool-poly').classList.remove('active');
+  const m = editMembers.find(m => m.id === selectedMemberId);
+  const opts = { shapeOptions: { color: m.color, fillColor: m.color, fillOpacity: 0.15, weight: 2.5 } };
+  if (type === 'rect') {
+    drawHandler = new L.Draw.Rectangle(amap, opts);
+    document.getElementById('tool-rect').classList.add('active');
+  } else {
+    drawHandler = new L.Draw.Polygon(amap, opts);
+    document.getElementById('tool-poly').classList.add('active');
+  }
+  drawHandler.enable();
+  amap.once(L.Draw.Event.CREATED, e => {
+    const coords = e.layer.getLatLngs()[0].map(ll => [ll.lat, ll.lng]);
+    const m2 = editMembers.find(m => m.id === selectedMemberId);
+    if (m2) {
+      m2.area = coords;
+      zoneLayerGroup.clearLayers();
+      editMembers.forEach(m3 => { if (m3.area) drawMemberZone(m3); });
+      renderMemberList();
+      renderMemberBtns();
+    }
+    document.getElementById('tool-rect').classList.remove('active');
+    document.getElementById('tool-poly').classList.remove('active');
+    drawHandler = null;
   });
 }
 
-let pendingZoneCoords = null;
-let pendingZoneLayer = null;
-
-function showAssignZone(coords, layer) {
-  pendingZoneCoords = coords;
-  pendingZoneLayer = layer;
-  // メンバー選択ダイアログ
-  const names = editingMembers.map((m,i)=>`<option value="${i}">${TRANSPORT_ICON[m.transport]} ${m.name}</option>`).join('');
-  if (!names) { alert('先にメンバーを追加してください'); return; }
-  const html = `<div class="modal-bg show" id="assign-modal" style="z-index:9000">
-    <div class="modal-box">
-      <div class="modal-title">エリアを割り当て</div>
-      <div class="modal-sub">このエリアをどのメンバーに割り当てますか？</div>
-      <select id="assign-select" style="width:100%;padding:11px 14px;border-radius:var(--radius-sm);border:1.5px solid var(--border2);font-size:15px;font-family:inherit;margin-bottom:16px;outline:none">${names}</select>
-      <div class="modal-row">
-        <button class="modal-btn ghost" onclick="document.getElementById('assign-modal').remove()">キャンセル</button>
-        <button class="modal-btn primary" onclick="assignZone()">割り当て</button>
-      </div>
-    </div>
-  </div>`;
-  document.body.insertAdjacentHTML('beforeend', html);
+function clearSelectedArea() {
+  if (!selectedMemberId) { alert('メンバーを選択してください'); return; }
+  const m = editMembers.find(m => m.id === selectedMemberId);
+  if (m && m.area) {
+    if (!confirm(`${TI[m.transport]}${m.name} のエリアを削除しますか？`)) return;
+    m.area = null;
+    zoneLayerGroup.clearLayers();
+    editMembers.forEach(m2 => { if (m2.area) drawMemberZone(m2); });
+    renderMemberList();
+    renderMemberBtns();
+  }
 }
 
-function assignZone() {
-  const idx = parseInt(document.getElementById('assign-select').value);
-  const m = editingMembers[idx];
-  m.area = pendingZoneCoords;
-  document.getElementById('assign-modal').remove();
-  // 既存の同メンバーゾーンを削除
-  if (adminZones[m.id]) adminMap.removeLayer(adminZones[m.id]);
-  // 新しいゾーンを描画
-  const poly = L.polygon(m.area, { color: m.color, fillColor: m.color, fillOpacity: 0.15, weight: 2.5, dashArray: '6 4' }).addTo(adminMap);
-  const label = L.divIcon({
-    html: `<div style="background:rgba(255,255,255,.9);border:1.5px solid ${m.color};border-radius:8px;padding:3px 9px;font-size:11px;font-weight:700;color:${m.color};white-space:nowrap">${TRANSPORT_ICON[m.transport]} ${m.name}</div>`,
-    iconSize: [120, 26], iconAnchor: [60, 13], className: ''
+function drawMemberZone(m) {
+  const poly = L.polygon(m.area, {
+    color: m.color, fillColor: m.color, fillOpacity: 0.15, weight: 2.5, dashArray: '6 4'
   });
   const lats = m.area.map(c=>c[0]), lngs = m.area.map(c=>c[1]);
   const clat = (Math.min(...lats)+Math.max(...lats))/2;
   const clng = (Math.min(...lngs)+Math.max(...lngs))/2;
-  L.marker([clat, clng], { icon: label, interactive: false }).addTo(adminMap);
-  adminZones[m.id] = poly;
-  renderMemberList();
+  const licon = L.divIcon({
+    html: `<div style="background:rgba(255,255,255,.9);border:1.5px solid ${m.color};border-radius:7px;padding:2px 9px;font-size:11px;font-weight:700;color:${m.color};white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.1)">${TI[m.transport]} ${m.name}</div>`,
+    iconSize:[130,24], iconAnchor:[65,12], className:''
+  });
+  zoneLayerGroup.addLayer(poly);
+  zoneLayerGroup.addLayer(L.marker([clat,clng],{icon:licon,interactive:false}));
+}
+
+function renderMemberBtns() {
+  const c = document.getElementById('member-btns');
+  if (!editMembers.length) { c.innerHTML = '<span style="font-size:12px;color:var(--text3)">基本設定タブでメンバーを追加してください</span>'; return; }
+  c.innerHTML = editMembers.map(m => `
+    <button class="mbtn${m.id===selectedMemberId?' sel':''}"
+      style="color:${m.color};border-color:${m.color};${m.id===selectedMemberId?`background:${m.color};color:#fff`:''}"
+      onclick="selectMapMember('${m.id}')">
+      ${TI[m.transport]} ${m.name} ${m.area?'✓':''}
+    </button>`).join('');
+}
+
+function selectMapMember(id) {
+  selectedMemberId = id;
+  renderMemberBtns();
 }
 
 // ============================================================
-// ADMIN: SESSION
+// Admin: member CRUD
 // ============================================================
 function renderMemberList() {
-  const card = document.getElementById('member-list-card');
-  if (!editingMembers.length) {
-    card.innerHTML = `<div style="padding:20px;text-align:center;color:var(--text3);font-size:13px">メンバーがいません</div>`;
+  const c = document.getElementById('m-list');
+  if (!editMembers.length) {
+    c.innerHTML = '<div style="padding:18px;text-align:center;color:var(--text3);font-size:13px">メンバーがいません</div>';
     return;
   }
-  card.innerHTML = editingMembers.map((m,i) => `
-    <div class="member-item">
-      <div class="member-color-bar" style="background:${m.color}"></div>
-      <div class="member-info">
-        <div class="member-name">${TRANSPORT_ICON[m.transport]} ${m.name}</div>
-        <div class="member-area">${m.area ? `✓ エリア設定済み` : '⚠ エリア未設定 — 「エリア設定」タブで描いてください'}</div>
+  c.innerHTML = editMembers.map((m,i) => `
+    <div class="mitem" onclick="openEditMember(${i})">
+      <div class="mbar" style="background:${m.color}"></div>
+      <div class="minfo">
+        <div class="mname">${TI[m.transport]} ${m.name}${m.target?' ('+m.target+'枚)':''}</div>
+        <div class="marea">${m.area ? '✓ エリア設定済み' : '⚠ エリア未設定 — エリア設定タブで描く'}</div>
       </div>
-      <button class="member-del" onclick="deleteMember(${i})">✕</button>
-    </div>
-  `).join('');
+      <div class="mdel" onclick="event.stopPropagation();delMember(${i})">✕</div>
+    </div>`).join('');
 }
 
-function renderSavedSessions() {
-  const card = document.getElementById('saved-sessions-card');
-  if (!sessions.length) {
-    card.innerHTML = `<div style="padding:20px;text-align:center;color:var(--text3);font-size:13px">保存済みセッションなし</div>`;
-    return;
-  }
-  card.innerHTML = sessions.map((s,i) => `
-    <div class="session-item">
-      <div class="session-icon">📋</div>
-      <div class="session-info" onclick="loadSession(${i})">
-        <div class="session-name">${s.title || '無題'}</div>
-        <div class="session-meta">${s.date || ''} / ${s.members.length}名 / ${s.total||'?'}枚</div>
-      </div>
-      <button class="session-del" onclick="deleteSession(${i})">削除</button>
-      <div class="session-arr" onclick="loadSession(${i})">›</div>
-    </div>
-  `).join('');
+function openAddMember() {
+  nmTransport = 'car'; nmColor = COLORS[editMembers.length % COLORS.length];
+  document.getElementById('nm-name').value = '';
+  ['car','bike','walk'].forEach(t => document.getElementById('t-'+t).classList.toggle('on', t===nmTransport));
+  const cd = document.getElementById('color-dots');
+  cd.innerHTML = COLORS.map(c => `<div class="cdot${c===nmColor?' on':''}" style="background:${c}" onclick="selNmColor('${c}')"></div>`).join('');
+  document.getElementById('m-add-title').textContent = 'メンバーを追加';
+  document.getElementById('m-add-modal').classList.add('on');
+  setTimeout(() => document.getElementById('nm-name').focus(), 100);
 }
 
-function loadSession(i) {
-  const s = sessions[i];
-  document.getElementById('sess-title').value = s.title || '';
-  document.getElementById('sess-date').value = s.date || '';
-  document.getElementById('sess-total').value = s.total || '';
-  editingMembers = JSON.parse(JSON.stringify(s.members));
-  renderMemberList();
-  // マップにゾーンを再描画
-  if (adminMap) {
-    editingMembers.forEach(m => {
-      if (m.area) {
-        const poly = L.polygon(m.area, { color: m.color, fillColor: m.color, fillOpacity: 0.15, weight: 2.5, dashArray: '6 4' }).addTo(adminMap);
-        adminZones[m.id] = poly;
-      }
-    });
-  }
+function closeAddMember() { document.getElementById('m-add-modal').classList.remove('on'); }
+
+function selTransport(t) {
+  nmTransport = t;
+  ['car','bike','walk'].forEach(bt => document.getElementById('t-'+bt).classList.toggle('on', bt===t));
+}
+function selNmColor(c) {
+  nmColor = c;
+  document.querySelectorAll('#color-dots .cdot').forEach(d => d.classList.toggle('on', d.style.background===c||d.style.backgroundColor===c));
 }
 
-function deleteSession(i) {
-  showConfirm('セッションを削除', `「${sessions[i].title||'無題'}」を削除しますか？`, () => {
-    sessions.splice(i, 1);
-    saveSessions();
-    renderSavedSessions();
-  });
-}
-
-function saveSession() {
-  const title = document.getElementById('sess-title').value.trim();
-  if (!title) { alert('タイトルを入力してください'); return; }
-  if (!editingMembers.length) { alert('メンバーを1人以上追加してください'); return; }
-
-  const total = parseInt(document.getElementById('sess-total').value) || 0;
-  const perMember = total && editingMembers.length ? Math.round(total / editingMembers.length) : 0;
-
-  const session = {
-    id: 'sess_' + Date.now(),
-    title,
-    date: document.getElementById('sess-date').value,
-    total,
-    members: editingMembers.map((m, i) => ({
-      ...m,
-      target: perMember,
-      order: i
-    }))
-  };
-
-  // 同名セッションは上書き
-  const existing = sessions.findIndex(s => s.title === title);
-  if (existing >= 0) sessions[existing] = session;
-  else sessions.unshift(session);
-
-  saveSessions();
-  renderSavedSessions();
-
-  // Supabaseにupsert保存（同じidは上書き）
-  sb('sessions', {
-    method: 'POST',
-    prefer: 'return=minimal',
-    headers: {
-      'Prefer': 'resolution=merge-duplicates,return=minimal',
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ id: session.id, data: JSON.stringify(session) })
-  }).then(r => {
-    if (r.ok) console.log('Supabase保存成功');
-    else r.text().then(t => console.error('Supabase保存失敗:', t));
-  }).catch(e => console.error('Supabase保存エラー:', e));
-
-  // 保存成功メッセージ（少し待ってから表示）
-  setTimeout(() => {
-    alert(`「${title}」を保存しました！\nスタッフ側でこのセッションを選んで開始できます。`);
-  }, 500);
-}
-
-// ============================================================
-// ADMIN: MEMBER
-// ============================================================
-function showAddMember() {
-  newMemberTransport = 'car';
-  newMemberColor = COLORS[editingMembers.length % COLORS.length];
-  document.getElementById('new-member-name').value = '';
-  // transport buttons
-  ['car','bike','walk'].forEach(t => {
-    document.getElementById('transport-'+t).style.background = t === newMemberTransport ? 'var(--accent)' : 'var(--surface2)';
-    document.getElementById('transport-'+t).style.color = t === newMemberTransport ? '#fff' : 'var(--text)';
-  });
-  // color picker
-  const cp = document.getElementById('color-picker');
-  cp.innerHTML = COLORS.map(c => `<div class="color-dot${c===newMemberColor?' sel':''}" style="background:${c}" onclick="selectColor('${c}')"></div>`).join('');
-  document.getElementById('add-member-modal').classList.add('show');
-  setTimeout(() => document.getElementById('new-member-name').focus(), 100);
-}
-
-function hideAddMember() { document.getElementById('add-member-modal').classList.remove('show'); }
-
-function selectTransport(t) {
-  newMemberTransport = t;
-  ['car','bike','walk'].forEach(bt => {
-    const el = document.getElementById('transport-'+bt);
-    el.style.background = bt === t ? 'var(--accent)' : 'var(--surface2)';
-    el.style.color = bt === t ? '#fff' : 'var(--text)';
-  });
-}
-
-function selectColor(c) {
-  newMemberColor = c;
-  document.querySelectorAll('.color-dot').forEach(d => d.classList.toggle('sel', d.style.background === c || d.style.backgroundColor === c));
-}
-
-function addMember() {
-  const name = document.getElementById('new-member-name').value.trim();
+function confirmAddMember() {
+  const name = document.getElementById('nm-name').value.trim();
   if (!name) { alert('名前を入力してください'); return; }
-  editingMembers.push({
-    id: 'member_' + Date.now() + '_' + Math.random().toString(36).slice(2,6),
-    name, transport: newMemberTransport, color: newMemberColor, area: null, target: 0
+  editMembers.push({ id:'m_'+Date.now()+'_'+Math.random().toString(36).slice(2,5), name, transport:nmTransport, color:nmColor, area:null, target:0 });
+  closeAddMember();
+  renderMemberList();
+}
+
+function delMember(i) {
+  showConfirm('メンバーを削除', `「${editMembers[i].name}」を削除しますか？`, () => {
+    editMembers.splice(i, 1);
+    renderMemberList();
   });
-  hideAddMember();
-  renderMemberList();
 }
 
-function deleteMember(i) {
-  editingMembers.splice(i, 1);
+function openEditMember(i) {
+  emIdx = i;
+  const m = editMembers[i];
+  emTransport = m.transport;
+  document.getElementById('em-name').value = m.name;
+  document.getElementById('em-target').value = m.target || '';
+  ['car','bike','walk'].forEach(t => document.getElementById('et-'+t).classList.toggle('on', t===emTransport));
+  document.getElementById('m-edit-modal').classList.add('on');
+}
+function closeEditMember() { document.getElementById('m-edit-modal').classList.remove('on'); }
+function selEditTransport(t) {
+  emTransport = t;
+  ['car','bike','walk'].forEach(bt => document.getElementById('et-'+bt).classList.toggle('on', bt===t));
+}
+function confirmEditMember() {
+  const name = document.getElementById('em-name').value.trim();
+  if (!name) { alert('名前を入力してください'); return; }
+  editMembers[emIdx].name = name;
+  editMembers[emIdx].transport = emTransport;
+  const t = parseInt(document.getElementById('em-target').value);
+  if (!isNaN(t) && t > 0) editMembers[emIdx].target = t;
+  closeEditMember();
   renderMemberList();
+  if (amap) { zoneLayerGroup.clearLayers(); editMembers.forEach(m => { if(m.area) drawMemberZone(m); }); renderMemberBtns(); }
 }
 
 // ============================================================
-// LOCAL STORAGE
+// Admin: sessions list
 // ============================================================
-function saveSessions() {
-  try { localStorage.setItem('pm_sessions_v2', JSON.stringify(sessions)); } catch(e) {}
-}
-
-async function loadSessions() {
-  // まずlocalStorageから読み込み
-  try {
-    const raw = localStorage.getItem('pm_sessions_v2');
-    sessions = raw ? JSON.parse(raw) : [];
-  } catch(e) { sessions = []; }
-
-  // Supabaseから最新を取得（こちらが正）
-  try {
-    const data = await sb('sessions?select=*&order=created_at.desc', {
-      method: 'GET', json: true, prefer: ''
-    });
-    if (Array.isArray(data) && data.length > 0) {
-      // Supabaseのデータで上書き（最新が正）
-      const sbSessions = [];
-      data.forEach(row => {
-        try {
-          const s = JSON.parse(row.data);
-          sbSessions.push(s);
-        } catch(e) {}
-      });
-      // localStorageにないものを追加、あるものは上書き
-      sbSessions.forEach(s => {
-        const idx = sessions.findIndex(x => x.id === s.id);
-        if (idx >= 0) sessions[idx] = s; // 上書き
-        else sessions.unshift(s); // 追加
-      });
-      saveSessions();
-    }
-  } catch(e) {
-    console.warn('Supabase読み込み失敗、localStorageを使用:', e);
+function renderSessList() {
+  const c = document.getElementById('sess-list');
+  if (!sessions.length) {
+    c.innerHTML = '<div style="padding:18px;text-align:center;color:var(--text3);font-size:13px">保存済みセッションなし</div>';
+    return;
   }
+  c.innerHTML = sessions.map((s,i) => `
+    <div class="sitem">
+      <div class="sicon">📋</div>
+      <div class="sinfo" onclick="loadSession(sessions[${i}])">
+        <div class="sname">${s.title||'無題'}</div>
+        <div class="smeta">${s.date||''} / ${(s.members||[]).length}名 / ${s.total||'?'}枚</div>
+      </div>
+      <button class="sdel" onclick="doDeleteSession('${s.id}')">削除</button>
+      <div class="sarr" onclick="loadSession(sessions[${i}])">›</div>
+    </div>`).join('');
+}
 
-  renderSavedSessions();
-  renderPickerGrid();
+async function doDeleteSession(id) {
+  showConfirm('セッションを削除', 'このセッションを削除しますか？', async () => {
+    loading(true, '削除中...');
+    await deleteSession(id);
+    await fetchSessions();
+    renderSessList();
+    loading(false);
+  });
 }
 
 // ============================================================
-// STAFF: PICKER
+// Staff: picker
 // ============================================================
-function showMemberPicker() {
-  document.getElementById('member-picker').classList.remove('hide');
-  renderPickerGrid();
+function showPicker() {
+  document.getElementById('picker-overlay').style.display = 'flex';
 }
 
 function renderPickerGrid() {
   const grid = document.getElementById('picker-grid');
+  const noSess = document.getElementById('picker-no-sess');
+  const sessName = document.getElementById('picker-sess-name');
+
   if (!sessions.length) {
-    grid.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text2);font-size:14px">📋 管理者がセッションを作成するまでお待ちください</div>`;
-    document.getElementById('picker-session-name').textContent = 'セッションが見つかりません';
+    grid.innerHTML = '';
+    noSess.style.display = 'block';
+    sessName.textContent = 'セッションが見つかりません';
     return;
   }
-  // 最新セッションを使用
+
+  noSess.style.display = 'none';
+  // セッションが複数ある場合は最新を使う（将来的にはセッション選択UIを追加可能）
   const sess = sessions[0];
-  currentSession = sess;
-  document.getElementById('picker-session-name').textContent = `${sess.title} / ${sess.date || ''}`;
-  grid.innerHTML = sess.members.map((m,i) => `
-    <button class="picker-btn" onclick="joinAsStaff(${i})" style="border-color:${m.color}20">
-      <div class="picker-dot" style="background:${m.color}"></div>
-      <div class="picker-info">
-        <div class="picker-name">${TRANSPORT_ICON[m.transport]} ${m.name}</div>
-        <div class="picker-detail">${m.area ? 'エリア設定済み' : 'エリア未設定'} / 目標 ${m.target||'?'} 枚</div>
+  sessName.textContent = `${sess.title||'無題'} / ${sess.date||''}`;
+
+  grid.innerHTML = (sess.members||[]).map((m,i) => `
+    <button class="pbtn" onclick="joinStaff(${i})" style="border-color:${m.color}22">
+      <div class="pdot" style="background:${m.color}"></div>
+      <div>
+        <div class="pname">${TI[m.transport]} ${m.name}</div>
+        <div class="pdetail">${m.area?'エリア設定済み':'エリア未設定'} / 目標 ${m.target||'?'} 枚</div>
       </div>
-      <div class="picker-arrow">›</div>
-    </button>
-  `).join('');
+      <div class="parr">›</div>
+    </button>`).join('');
 }
 
 // ============================================================
-// STAFF: JOIN
+// Staff: join
 // ============================================================
-function joinAsStaff(idx) {
-  myMemberIdx = idx;
-  document.getElementById('member-picker').classList.add('hide');
-  document.getElementById('staff-title').textContent = currentSession.title || 'PostingMap';
+function joinStaff(idx) {
+  const sess = sessions[0];
+  if (!sess) return;
+  myIdx = idx;
+  document.getElementById('picker-overlay').style.display = 'none';
+  document.getElementById('s-title').textContent = sess.title || 'PostingMap';
 
-  if (!map) initStaffMap();
-
-  markers = currentSession.members.map(() => []);
+  if (!smap) initStaffMap();
+  sMarkers = sess.members.map(() => []);
   history = [];
 
-  drawZones();
-  renderRemainBar();
-  renderTabs();
-  updateBadge();
-  startGPS();
-  loadMarkers();
-  if (syncTimer) clearInterval(syncTimer);
-  syncTimer = setInterval(loadMarkers, 5000);
-
-  // ヒント表示後フェード
-  setTimeout(() => { document.getElementById('staff-hint').style.opacity = '0'; }, 3000);
-
   layoutStaff();
+  drawZones(sess);
+  renderRbar(sess);
+  updateBadge(sess);
+  startGPS();
+  loadStaffMarkers(sess);
+  if (syncTmr) clearInterval(syncTmr);
+  syncTmr = setInterval(() => loadStaffMarkers(sess), 5000);
+
+  setTimeout(() => { document.getElementById('s-hint').style.opacity = '0'; }, 3000);
 }
 
 function layoutStaff() {
-  const hH = document.getElementById('staff-header').offsetHeight;
-  const rH = 42, bH = 60;
-  document.getElementById('remain-bar').style.top = hH + 'px';
-  document.getElementById('staff-map').style.top = (hH + rH) + 'px';
-  document.getElementById('staff-map').style.bottom = bH + 'px';
+  const hH = document.getElementById('staff-hdr').offsetHeight;
+  const rH = 44, bH = 58;
+  document.getElementById('rbar').style.top = hH + 'px';
+  document.getElementById('s-map').style.top = (hH + rH) + 'px';
+  document.getElementById('s-map').style.bottom = bH + 'px';
   document.getElementById('gps-btn').style.bottom = (bH + 12) + 'px';
-  document.getElementById('staff-hint').style.bottom = (bH + 12) + 'px';
-  document.getElementById('staff-leg').style.bottom = (bH + 12) + 'px';
-  if (map) map.invalidateSize();
+  document.getElementById('s-hint').style.bottom = (bH + 12) + 'px';
+  document.getElementById('s-leg').style.bottom = (bH + 12) + 'px';
+  if (smap) smap.invalidateSize();
 
-  // 担当エリアにズーム
-  const m = currentSession.members[myMemberIdx];
-  if (m.area && map) {
-    const bounds = L.latLngBounds(m.area.map(c => L.latLng(c[0], c[1])));
-    map.fitBounds(bounds, { padding: [40, 40] });
-  } else if (map) {
-    map.setView([35.910, 139.490], 14);
+  // エリアにズーム
+  const sess = sessions[0];
+  if (!sess) return;
+  const m = sess.members[myIdx];
+  if (m && m.area && smap) {
+    smap.fitBounds(L.latLngBounds(m.area.map(c => L.latLng(c[0], c[1]))), { padding: [40, 40] });
+  } else if (smap) {
+    smap.setView([35.910, 139.490], 14);
   }
 }
 
 // ============================================================
-// STAFF MAP
+// Staff map init
 // ============================================================
 function initStaffMap() {
-  map = L.map('staff-map', { zoomControl: true, attributionControl: false, tapTolerance: 15 });
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 20, minZoom: 10 }).addTo(map);
-
-  map.on('zoomend', updateBizVisibility);
-
-  map.on('click', e => {
-    if (isTouching) return;
-    addMarker(myMemberIdx, e.latlng);
-  });
-
-  const md = document.getElementById('staff-map');
-  md.addEventListener('touchstart', e => {
-    if (e.touches.length >= 2) isTouching = true;
-  }, { passive: true });
-  md.addEventListener('touchend', e => {
-    if (e.touches.length === 0) setTimeout(() => { isTouching = false; }, 300);
-  }, { passive: true });
+  smap = L.map('s-map', { zoomControl: true, attributionControl: false, tapTolerance: 15 });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 20, minZoom: 10 }).addTo(smap);
+  smap.on('zoomend', updateBizVis);
+  smap.on('click', e => { if (!isTouching) addStaffMarker(myIdx, e.latlng); });
+  const md = document.getElementById('s-map');
+  md.addEventListener('touchstart', e => { if (e.touches.length >= 2) isTouching = true; }, { passive: true });
+  md.addEventListener('touchend', e => { if (e.touches.length === 0) setTimeout(() => isTouching = false, 300); }, { passive: true });
 }
 
 // ============================================================
-// ZONES
+// Staff: zones
 // ============================================================
-function drawZones() {
-  zonePolys.forEach(p => { try { map.removeLayer(p); } catch(e) {} });
-  zonePolys = [];
-  if (!currentSession) return;
-  currentSession.members.forEach((m, i) => {
+function drawZones(sess) {
+  sZones.forEach(l => { try { smap.removeLayer(l); } catch(e) {} });
+  sZones = [];
+  (sess.members||[]).forEach((m, i) => {
     if (!m.area) return;
-    const active = i === myMemberIdx;
+    const active = i === myIdx;
     const poly = L.polygon(m.area, {
       color: m.color, fillColor: m.color,
       fillOpacity: active ? 0.12 : 0.04,
       weight: active ? 2.5 : 1.5,
       dashArray: '7 5', opacity: active ? 1 : 0.5
-    }).addTo(map);
+    }).addTo(smap);
     const lats = m.area.map(c=>c[0]), lngs = m.area.map(c=>c[1]);
     const clat = (Math.min(...lats)+Math.max(...lats))/2;
     const clng = (Math.min(...lngs)+Math.max(...lngs))/2;
-    const done = markers[i] ? markers[i].length : 0;
-    const rem = m.target ? Math.max(0, m.target - done) : '?';
-    const lIcon = L.divIcon({
+    const done = sMarkers[i] ? sMarkers[i].length : 0;
+    const rem = m.target ? Math.max(0, m.target-done) : '?';
+    const li = L.divIcon({
       html: `<div style="background:rgba(255,255,255,.92);border:1.5px solid ${m.color};border-radius:8px;padding:3px 10px;white-space:nowrap;pointer-events:none;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.08)">
-        <div style="font-size:11px;font-weight:700;color:${m.color}">${TRANSPORT_ICON[m.transport]} ${m.name}</div>
+        <div style="font-size:11px;font-weight:700;color:${m.color}">${TI[m.transport]} ${m.name}</div>
         <div style="font-size:10px;color:#555;margin-top:1px">残り <b>${rem}</b> 件</div>
       </div>`,
-      iconSize: [130, 40], iconAnchor: [65, 20], className: ''
+      iconSize:[130,40], iconAnchor:[65,20], className:''
     });
-    zonePolys.push(poly, L.marker([clat, clng], { icon: lIcon, interactive: false }).addTo(map));
+    sZones.push(poly, L.marker([clat,clng],{icon:li,interactive:false}).addTo(smap));
   });
 }
 
 // ============================================================
-// MARKERS
+// Staff: markers
 // ============================================================
-function makeIcon() {
+function mkIcon() {
   return L.divIcon({
     html: `<div style="width:26px;height:26px;border-radius:50%;background:#22c55e;border:3px solid #15803d;display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;font-weight:900;box-shadow:0 2px 6px rgba(0,0,0,.25)">✓</div>`,
-    iconSize: [26, 26], iconAnchor: [13, 13], className: ''
+    iconSize:[26,26], iconAnchor:[13,13], className:''
   });
 }
 
-function addMarker(mi, latlng, savedId) {
-  const id = savedId || (String(Date.now()) + String(Math.random()).slice(2, 7));
-  const lm = L.marker(latlng, { icon: makeIcon(), riseOnHover: true }).addTo(map);
+function addStaffMarker(mi, latlng, savedId) {
+  const id = savedId || (String(Date.now()) + String(Math.random()).slice(2,7));
+  const lm = L.marker(latlng, { icon: mkIcon(), riseOnHover: true }).addTo(smap);
   const obj = { id, latlng, marker: lm };
-  markers[mi].push(obj);
-  bindMarkerPopup(obj, mi);
+  sMarkers[mi].push(obj);
+  bindSPop(obj, mi);
   if (!savedId) {
     history.push({ mi, id });
-    sb('markers', {
+    const sess = sessions[0];
+    api('markers', {
       method: 'POST', prefer: 'return=minimal',
-      body: JSON.stringify({ id, session: currentSession.id, member_id: currentSession.members[mi].id, lat: latlng.lat, lng: latlng.lng })
+      body: JSON.stringify({ id, session: sess.id, member_id: sess.members[mi].id, lat: latlng.lat, lng: latlng.lng })
     }).catch(() => {});
   }
   updateAll();
 }
 
-function bindMarkerPopup(obj, mi) {
+function bindSPop(obj, mi) {
   obj.marker.bindPopup(`
     <div style="padding:12px 14px;min-width:140px">
-      <div style="font-size:13px;font-weight:700;margin-bottom:10px;color:var(--text)">✅ 配布済み</div>
+      <div style="font-size:13px;font-weight:700;margin-bottom:10px">✅ 配布済み</div>
       <button style="width:100%;padding:9px;border-radius:9px;border:none;font-size:13px;font-weight:600;cursor:pointer;background:#fff1f0;color:#dc2626"
-        onclick="removeMarker('${obj.id}',${mi})">🗑 取り消し</button>
+        onclick="delSMarker('${obj.id}',${mi})">🗑 取り消し</button>
     </div>`, { maxWidth: 200 });
 }
 
-function removeMarker(id, mi) {
-  const idx = markers[mi].findIndex(m => m.id === id);
-  if (idx !== -1) { map.removeLayer(markers[mi][idx].marker); markers[mi].splice(idx, 1); }
-  map.closePopup();
-  sb(`markers?id=eq.${id}&session=eq.${currentSession.id}`, { method: 'DELETE' }).catch(() => {});
+function delSMarker(id, mi) {
+  const idx = sMarkers[mi].findIndex(m => m.id === id);
+  if (idx !== -1) { smap.removeLayer(sMarkers[mi][idx].marker); sMarkers[mi].splice(idx, 1); }
+  smap.closePopup();
+  const sess = sessions[0];
+  api(`markers?id=eq.${id}&session=eq.${sess.id}`, { method: 'DELETE' }).catch(() => {});
   updateAll();
 }
 
 function undoLast() {
   if (!history.length) { alert('元に戻せる操作がありません'); return; }
   const last = history.pop();
-  removeMarker(last.id, last.mi);
+  delSMarker(last.id, last.mi);
 }
 
-function resetMyArea() {
-  showConfirm('リセット確認', `自分のマーカーをすべて削除しますか？`, () => {
-    [...markers[myMemberIdx]].forEach(mk => removeMarker(mk.id, myMemberIdx));
-    history = history.filter(h => h.mi !== myMemberIdx);
+function resetMy() {
+  showConfirm('リセット', '自分のマーカーをすべて削除しますか？', () => {
+    [...sMarkers[myIdx]].forEach(mk => delSMarker(mk.id, myIdx));
+    history = history.filter(h => h.mi !== myIdx);
   });
 }
 
 // ============================================================
-// SYNC
+// Staff: sync
 // ============================================================
-async function loadMarkers() {
-  if (!currentSession) return;
+async function loadStaffMarkers(sess) {
   try {
-    const data = await sb(`markers?session=eq.${currentSession.id}&select=*`, { method: 'GET', json: true, prefer: '' });
+    const data = await api(`markers?session=eq.${sess.id}&select=*`, { method: 'GET', json: true, prefer: '' });
     if (!Array.isArray(data)) return;
-    setSyncDot('green');
+    setSyncDot('ok');
 
     const localIds = new Set();
-    markers.forEach(arr => arr.forEach(m => localIds.add(m.id)));
+    sMarkers.forEach(a => a.forEach(m => localIds.add(m.id)));
     const remoteIds = new Set(data.map(d => d.id));
 
     // 追加
     data.forEach(d => {
       if (localIds.has(d.id)) return;
-      const mi = currentSession.members.findIndex(m => m.id === d.member_id);
+      const mi = sess.members.findIndex(m => m.id === d.member_id);
       if (mi < 0) return;
       const ll = L.latLng(d.lat, d.lng);
-      const lm = L.marker(ll, { icon: makeIcon(), riseOnHover: true }).addTo(map);
+      const lm = L.marker(ll, { icon: mkIcon(), riseOnHover: true }).addTo(smap);
       const obj = { id: d.id, latlng: ll, marker: lm };
-      markers[mi].push(obj);
-      bindMarkerPopup(obj, mi);
+      sMarkers[mi].push(obj);
+      bindSPop(obj, mi);
     });
 
     // 削除
-    markers.forEach((arr, mi) => {
-      const toRemove = arr.filter(m => !remoteIds.has(m.id));
-      toRemove.forEach(m => { try { map.removeLayer(m.marker); } catch(e) {} });
-      markers[mi] = arr.filter(m => remoteIds.has(m.id));
+    sMarkers.forEach((arr, mi) => {
+      const rm = arr.filter(m => !remoteIds.has(m.id));
+      rm.forEach(m => { try { smap.removeLayer(m.marker); } catch(e) {} });
+      sMarkers[mi] = arr.filter(m => remoteIds.has(m.id));
     });
 
     // GPS
-    const gps = await sb(`gps_positions?session=eq.${currentSession.id}&select=*`, { method: 'GET', json: true, prefer: '' });
+    const gps = await api(`gps_positions?session=eq.${sess.id}&select=*`, { method: 'GET', json: true, prefer: '' });
     if (Array.isArray(gps)) {
       gps.forEach(d => {
-        const mi = currentSession.members.findIndex(m => m.id === d.member_id);
-        if (mi < 0 || mi === myMemberIdx) return;
-        updateOtherGPS(d.member_id, d.lat, d.lng, currentSession.members[mi]);
+        const mi = sess.members.findIndex(m => m.id === d.member_id);
+        if (mi < 0 || mi === myIdx) return;
+        updateOGPS(d.member_id, d.lat, d.lng, sess.members[mi]);
       });
     }
 
     updateAll();
-  } catch(e) { setSyncDot('red'); }
+  } catch(e) { setSyncDot('err'); }
 }
 
 function setSyncDot(s) { document.getElementById('sync-dot').className = s; }
 
-function updateOtherGPS(memberId, lat, lng, m) {
+function updateOGPS(mid, lat, lng, m) {
   const ll = L.latLng(lat, lng);
-  if (otherGpsMarkers[memberId]) {
-    otherGpsMarkers[memberId].setLatLng(ll);
-  } else {
-    const icon = L.divIcon({
-      html: `<div style="display:flex;flex-direction:column;align-items:center">
-        <div style="background:${m.color};color:#fff;border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:14px;border:2.5px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.25)">${TRANSPORT_ICON[m.transport]}</div>
-        <div style="background:${m.color};color:#fff;border-radius:4px;padding:1px 6px;font-size:9px;font-weight:700;margin-top:2px">${m.name}</div>
-      </div>`,
-      iconSize: [50, 46], iconAnchor: [25, 15], className: ''
-    });
-    otherGpsMarkers[memberId] = L.marker(ll, { icon, zIndexOffset: 8000 }).addTo(map);
-  }
+  if (otherGps[mid]) { otherGps[mid].setLatLng(ll); return; }
+  const icon = L.divIcon({
+    html: `<div style="display:flex;flex-direction:column;align-items:center">
+      <div style="background:${m.color};color:#fff;border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:14px;border:2.5px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.25)">${TI[m.transport]}</div>
+      <div style="background:${m.color};color:#fff;border-radius:4px;padding:1px 6px;font-size:9px;font-weight:700;margin-top:2px">${m.name}</div>
+    </div>`,
+    iconSize:[50,46], iconAnchor:[25,15], className:''
+  });
+  otherGps[mid] = L.marker(ll, { icon, zIndexOffset: 8000 }).addTo(smap);
 }
 
 // ============================================================
-// UI UPDATE
+// Staff: UI
 // ============================================================
 function updateAll() {
-  renderRemainBar();
-  renderTabs();
-  drawZones();
-  updateBadge();
+  const sess = sessions[0];
+  if (!sess) return;
+  renderRbar(sess);
+  drawZones(sess);
+  updateBadge(sess);
 }
 
-function renderRemainBar() {
-  if (!currentSession) return;
-  document.getElementById('remain-bar').innerHTML = currentSession.members.map((m, i) => {
-    const done = markers[i] ? markers[i].length : 0;
-    const rem = m.target ? Math.max(0, m.target - done) : '?';
-    const active = i === myMemberIdx;
-    return `<div class="rb ${active ? 'active' : ''}" style="border-top:3px solid ${m.color}" onclick="focusMember(${i})">
+function renderRbar(sess) {
+  document.getElementById('rbar').innerHTML = (sess.members||[]).map((m, i) => {
+    const done = sMarkers[i] ? sMarkers[i].length : 0;
+    const rem = m.target ? Math.max(0, m.target-done) : '?';
+    return `<div class="rb${i===myIdx?' me':''}" style="border-top:3px solid ${m.color}" onclick="focusMember(${i},sess)">
       <span class="rn" style="color:${m.color}">${rem}</span>
-      <span class="rl">${TRANSPORT_ICON[m.transport]}${m.name}</span>
+      <span class="rl">${TI[m.transport]}${m.name}</span>
     </div>`;
   }).join('');
 }
 
-function renderTabs() {} // タブなし（残件バーに統合）
-
-function updateBadge() {
-  if (!currentSession) return;
-  const td = markers.reduce((s, a) => s + a.length, 0);
-  const tt = currentSession.total || currentSession.members.reduce((s, m) => s + (m.target || 0), 0);
-  document.getElementById('staff-badge').textContent = `${td}/${tt}`;
+function updateBadge(sess) {
+  const td = sMarkers.reduce((s, a) => s + a.length, 0);
+  const tt = sess.total || sess.members.reduce((s, m) => s+(m.target||0), 0);
+  document.getElementById('s-badge').textContent = `${td}/${tt}`;
 }
 
-function focusMember(idx) {
-  const m = currentSession.members[idx];
-  if (m.area && map) {
-    const bounds = L.latLngBounds(m.area.map(c => L.latLng(c[0], c[1])));
-    map.fitBounds(bounds, { padding: [40, 40] });
-  }
+function focusMember(i) {
+  const sess = sessions[0]; if (!sess) return;
+  const m = sess.members[i];
+  if (m && m.area && smap) smap.fitBounds(L.latLngBounds(m.area.map(c=>L.latLng(c[0],c[1]))),{padding:[40,40]});
 }
 
 // ============================================================
-// BIZ MARKERS (zoom 17+)
+// Biz markers
 // ============================================================
-const BIZ_ZOOM = 17;
-function updateBizVisibility() {
-  const zoom = map.getZoom();
-  bizLayers.forEach(b => {
-    if (zoom >= BIZ_ZOOM) { if (!map.hasLayer(b)) b.addTo(map); }
-    else { if (map.hasLayer(b)) map.removeLayer(b); }
-  });
-  if (zoom >= BIZ_ZOOM) fetchBizVisible();
+const BIZ_Z = 17;
+function updateBizVis() {
+  const z = smap.getZoom();
+  sBizLayers.forEach(l => { if(z>=BIZ_Z){if(!smap.hasLayer(l))l.addTo(smap);}else{if(smap.hasLayer(l))smap.removeLayer(l);} });
+  if (z >= BIZ_Z) fetchBizVis();
 }
-function fetchBizVisible() {
-  if (!currentSession) return;
-  currentSession.members.forEach((m, i) => {
-    if (!m.area || bizFetched[m.id]) return;
-    const lats = m.area.map(c=>c[0]), lngs = m.area.map(c=>c[1]);
+function fetchBizVis() {
+  const sess = sessions[0]; if(!sess) return;
+  (sess.members||[]).forEach(m => {
+    if (!m.area || sBizFetched[m.id]) return;
+    const lats=m.area.map(c=>c[0]),lngs=m.area.map(c=>c[1]);
     const s=Math.min(...lats),n=Math.max(...lats),w=Math.min(...lngs),e=Math.max(...lngs);
-    bizFetched[m.id] = true;
-    const q = `[out:json][timeout:20];(node["amenity"](${s},${w},${n},${e});node["shop"](${s},${w},${n},${e});node["office"](${s},${w},${n},${e}););out center;`;
-    fetch('https://overpass-api.de/api/interpreter', { method:'POST', body:'data='+encodeURIComponent(q), headers:{'Content-Type':'application/x-www-form-urlencoded'}, signal:AbortSignal.timeout(15000) })
+    sBizFetched[m.id]=true;
+    const q=`[out:json][timeout:20];(node["amenity"](${s},${w},${n},${e});node["shop"](${s},${w},${n},${e});node["office"](${s},${w},${n},${e}););out center;`;
+    fetch('https://overpass-api.de/api/interpreter',{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'},signal:AbortSignal.timeout(15000)})
     .then(r=>r.json()).then(data=>{
       (data.elements||[]).forEach(el=>{
-        const tags=el.tags||{};
-        const lat=el.lat||(el.center&&el.center.lat), lng=el.lon||(el.center&&el.center.lon);
-        if(!lat||!lng) return;
-        const name=tags.name||tags.amenity||tags.shop||'施設';
+        const tags=el.tags||{};const lat=el.lat||(el.center&&el.center.lat);const lng=el.lon||(el.center&&el.center.lon);
+        if(!lat||!lng)return;
         const icon=L.divIcon({html:`<div style="font-size:17px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.2))">🏭</div>`,iconSize:[20,20],iconAnchor:[10,16],className:''});
-        const lm=L.marker([lat,lng],{icon,zIndexOffset:400}).bindPopup(`<div style="padding:10px 12px"><div style="font-size:13px;font-weight:700;margin-bottom:4px">🏭 ${name}</div><div style="display:inline-block;background:#fee2e2;color:#dc2626;border-radius:99px;padding:2px 8px;font-size:10px;font-weight:600">⛔ ポスティング除外</div></div>`,{maxWidth:200});
-        bizLayers.push(lm);
-        if(map.getZoom()>=BIZ_ZOOM) lm.addTo(map);
+        const lm=L.marker([lat,lng],{icon,zIndexOffset:400}).bindPopup(`<div style="padding:10px 12px"><b>🏭 ${tags.name||'施設'}</b><br><span style="background:#fee2e2;color:#dc2626;border-radius:99px;padding:2px 8px;font-size:10px;font-weight:600">⛔ 除外</span></div>`,{maxWidth:180});
+        sBizLayers.push(lm);
+        if(smap.getZoom()>=BIZ_Z)lm.addTo(smap);
       });
-    }).catch(()=>{ bizFetched[m.id]=false; });
+    }).catch(()=>{sBizFetched[m.id]=false;});
   });
 }
 
@@ -1059,21 +1104,20 @@ function fetchBizVisible() {
 // GPS
 // ============================================================
 function startGPS() {
-  if (!navigator.geolocation) return;
-  navigator.geolocation.watchPosition(pos => {
-    const { latitude:lat, longitude:lng, accuracy } = pos.coords;
-    const ll = L.latLng(lat, lng);
-    if (!gpsMarker) {
-      gpsCircle = L.circle(ll,{radius:accuracy,color:'#0071e3',fillColor:'#0071e3',fillOpacity:0.08,weight:1}).addTo(map);
-      gpsMarker = L.marker(ll,{icon:arrowIcon(gpsHeading),zIndexOffset:9000}).addTo(map);
-    } else { gpsMarker.setLatLng(ll); gpsCircle.setLatLng(ll).setRadius(accuracy); }
+  if(!navigator.geolocation)return;
+  navigator.geolocation.watchPosition(pos=>{
+    const{latitude:lat,longitude:lng,accuracy}=pos.coords;
+    const ll=L.latLng(lat,lng);
+    if(!gpsM){
+      gpsC=L.circle(ll,{radius:accuracy,color:'#0071e3',fillColor:'#0071e3',fillOpacity:0.08,weight:1}).addTo(smap);
+      gpsM=L.marker(ll,{icon:arrowIcon(gpsH),zIndexOffset:9000}).addTo(smap);
+    }else{gpsM.setLatLng(ll);gpsC.setLatLng(ll).setRadius(accuracy);}
     updateArrow();
-    if (currentSession) {
-      const mid = currentSession.members[myMemberIdx]?.id;
-      if (mid) sb('gps_positions',{method:'POST',headers:{'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({session:currentSession.id,member_id:mid,lat,lng})}).catch(()=>{});
-    }
-  }, ()=>{}, {enableHighAccuracy:true,maximumAge:3000,timeout:15000});
-  const h=e=>{gpsHeading=e.webkitCompassHeading??(e.alpha!=null?(360-e.alpha):null);updateArrow();};
+    const sess=sessions[0]; if(!sess)return;
+    const mid=sess.members[myIdx]?.id;
+    if(mid) api('gps_positions',{method:'POST',headers:{'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({session:sess.id,member_id:mid,lat,lng})}).catch(()=>{});
+  },()=>{},{enableHighAccuracy:true,maximumAge:3000,timeout:15000});
+  const h=e=>{gpsH=e.webkitCompassHeading??(e.alpha!=null?(360-e.alpha):null);updateArrow();};
   if(typeof DeviceOrientationEvent!=='undefined'){
     typeof DeviceOrientationEvent.requestPermission==='function'
       ?document.getElementById('gps-btn').addEventListener('click',()=>{DeviceOrientationEvent.requestPermission().then(r=>{if(r==='granted')window.addEventListener('deviceorientation',h);});},{once:true})
@@ -1083,13 +1127,12 @@ function startGPS() {
 function arrowIcon(h){
   const has=h!=null;
   return L.divIcon({
-    html:has
-      ?`<div style="width:38px;height:38px;position:relative;display:flex;align-items:center;justify-content:center">
-          <div style="position:absolute;inset:0;border-radius:50%;background:rgba(0,113,227,.12);animation:gp 2s infinite"></div>
-          <svg viewBox="0 0 38 38" style="width:38px;height:38px;transform:rotate(${h}deg)">
-            <circle cx="19" cy="19" r="11" fill="#0071e3" stroke="#fff" stroke-width="2.5"/>
-            <polygon points="19,3 26,15 19,11 12,15" fill="#003d82" stroke="#fff" stroke-width="1"/>
-          </svg></div><style>@keyframes gp{0%,100%{transform:scale(1);opacity:.8}50%{transform:scale(1.6);opacity:.2}}</style>`
+    html:has?`<div style="width:38px;height:38px;position:relative;display:flex;align-items:center;justify-content:center">
+        <div style="position:absolute;inset:0;border-radius:50%;background:rgba(0,113,227,.12);animation:gp 2s infinite"></div>
+        <svg viewBox="0 0 38 38" style="width:38px;height:38px;transform:rotate(${h}deg)">
+          <circle cx="19" cy="19" r="11" fill="#0071e3" stroke="#fff" stroke-width="2.5"/>
+          <polygon points="19,3 26,15 19,11 12,15" fill="#003d82" stroke="#fff" stroke-width="1"/>
+        </svg></div><style>@keyframes gp{0%,100%{transform:scale(1);opacity:.8}50%{transform:scale(1.6);opacity:.2}}</style>`
       :`<div style="width:34px;height:34px;position:relative;display:flex;align-items:center;justify-content:center">
           <div style="position:absolute;inset:0;border-radius:50%;background:rgba(0,113,227,.12);animation:gp 2s infinite"></div>
           <div style="width:18px;height:18px;border-radius:50%;background:#0071e3;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,113,227,.4)"></div></div>
@@ -1097,61 +1140,55 @@ function arrowIcon(h){
     iconSize:[38,38],iconAnchor:[19,19],className:''
   });
 }
-function updateArrow(){if(gpsMarker)gpsMarker.setIcon(arrowIcon(gpsHeading));}
-function centerGPS(){if(gpsMarker)map.setView(gpsMarker.getLatLng(),17);}
+function updateArrow(){if(gpsM)gpsM.setIcon(arrowIcon(gpsH));}
+function centerGPS(){if(gpsM)smap.setView(gpsM.getLatLng(),17);}
 
 // ============================================================
-// STATS
+// Stat
 // ============================================================
-function showStatModal() {
-  if (!currentSession) return;
-  let td = 0;
-  const rows = currentSession.members.map((m, i) => {
-    const done = markers[i] ? markers[i].length : 0;
-    const rem = m.target ? Math.max(0, m.target - done) : '?';
-    const pct = m.target ? Math.round(done/m.target*100) : 0;
-    td += done;
-    return `<div class="stat-row">
-      <span class="stat-name"><span class="stat-dot" style="background:${m.color}"></span>${TRANSPORT_ICON[m.transport]} ${m.name}</span>
-      <span><span class="stat-val">残${rem}件</span><br><span class="stat-rem">${done}/${m.target||'?'}件(${pct}%)</span></span>
+function showStat() {
+  const sess=sessions[0]; if(!sess)return;
+  let td=0;
+  const rows=(sess.members||[]).map((m,i)=>{
+    const done=sMarkers[i]?sMarkers[i].length:0;
+    const rem=m.target?Math.max(0,m.target-done):'?';
+    const pct=m.target?Math.round(done/m.target*100):0;
+    td+=done;
+    return`<div class="srow">
+      <span class="sname2"><span class="sdot2" style="background:${m.color}"></span>${TI[m.transport]} ${m.name}</span>
+      <span style="text-align:right"><span style="font-size:14px;font-weight:700">残${rem}件</span><br><span style="font-size:11px;color:var(--text2)">${done}/${m.target||'?'}件(${pct}%)</span></span>
     </div>`;
   }).join('');
-  const tt = currentSession.total || currentSession.members.reduce((s,m)=>s+(m.target||0),0);
-  const pct = tt ? Math.round(td/tt*100) : 0;
-  document.getElementById('stat-pct').textContent = pct + '%';
-  document.getElementById('stat-sub').textContent = `配布済み ${td} / 目標 ${tt} 件`;
-  document.getElementById('stat-rows').innerHTML = rows;
-  document.getElementById('stat-modal').classList.add('show');
+  const tt=sess.total||(sess.members||[]).reduce((s,m)=>s+(m.target||0),0);
+  const pct=tt?Math.round(td/tt*100):0;
+  document.getElementById('stat-pct').textContent=pct+'%';
+  document.getElementById('stat-sub').textContent=`配布済み ${td} / 目標 ${tt} 件`;
+  document.getElementById('stat-rows').innerHTML=rows;
+  document.getElementById('stat-modal').classList.add('on');
 }
-function hideStatModal() { document.getElementById('stat-modal').classList.remove('show'); }
-
-// ============================================================
-// CONFIRM
-// ============================================================
-let confirmCb = null;
-function showConfirm(title, msg, cb) {
-  document.getElementById('confirm-title').textContent = title;
-  document.getElementById('confirm-msg').textContent = msg;
-  confirmCb = cb;
-  document.getElementById('confirm-modal').classList.add('show');
-}
-function hideConfirm() { document.getElementById('confirm-modal').classList.remove('show'); confirmCb = null; }
-document.getElementById('confirm-ok').onclick = () => { hideConfirm(); if(confirmCb) confirmCb(); };
+function closeStat(){document.getElementById('stat-modal').classList.remove('on');}
 
 // ============================================================
 // CSV
 // ============================================================
-function exportCSV() {
-  if (!currentSession) return;
-  let csv = '\uFEFF担当者,緯度,経度\n';
-  currentSession.members.forEach((m,i) => {
-    (markers[i]||[]).forEach(mk => { csv += `${m.name},${mk.latlng.lat.toFixed(6)},${mk.latlng.lng.toFixed(6)}\n`; });
-  });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
-  a.download = `${currentSession.title||'posting'}_result.csv`;
-  a.click();
+function doCSV(){
+  const sess=sessions[0];if(!sess)return;
+  let csv='\uFEFF担当者,緯度,経度\n';
+  (sess.members||[]).forEach((m,i)=>{(sMarkers[i]||[]).forEach(mk=>{csv+=`${m.name},${mk.latlng.lat.toFixed(6)},${mk.latlng.lng.toFixed(6)}\n`;});});
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));a.download=`${sess.title||'posting'}.csv`;a.click();
 }
+
+// ============================================================
+// Confirm modal
+// ============================================================
+function showConfirm(title,msg,cb){
+  document.getElementById('cf-title').textContent=title;
+  document.getElementById('cf-msg').textContent=msg;
+  confirmCb=cb;
+  document.getElementById('confirm-modal').classList.add('on');
+}
+function closeConfirm(){document.getElementById('confirm-modal').classList.remove('on');confirmCb=null;}
+document.getElementById('cf-ok').onclick=()=>{closeConfirm();if(confirmCb)confirmCb();};
 </script>
 </body>
 </html>
