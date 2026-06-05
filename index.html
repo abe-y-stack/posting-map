@@ -337,8 +337,8 @@ html,body{height:100%;width:100%;overflow:hidden;font-family:'Noto Sans JP',sans
     <div class="mt" id="cf-title">確認</div>
     <div class="ms" id="cf-msg">よろしいですか？</div>
     <div class="mrow">
-      <button class="mbtn g" onclick="closeConfirm()">キャンセル</button>
-      <button class="mbtn d" onclick="execConfirm()">削除</button>
+      <button class="mbtn g" id="cf-cancel-btn">キャンセル</button>
+      <button class="mbtn d" id="cf-ok-btn">削除</button>
     </div>
   </div>
 </div>
@@ -684,15 +684,34 @@ function renderMemberList() {
     c.innerHTML = '<div style="padding:18px;text-align:center;color:var(--text3);font-size:13px">メンバーがいません</div>';
     return;
   }
-  c.innerHTML = editMembers.map((m,i) => `
-    <div class="mitem" onclick="openEditMember(${i})">
-      <div class="mbar" style="background:${m.color}"></div>
-      <div class="minfo">
-        <div class="mname">${TI[m.transport]} ${m.name}${m.target?' ('+m.target+'枚)':''}</div>
-        <div class="marea">${m.area ? '✓ エリア設定済み' : '⚠ エリア未設定 — エリア設定タブで描く'}</div>
-      </div>
-      <div class="mdel" onclick="event.stopPropagation();delMember(${i})">✕</div>
-    </div>`).join('');
+  c.innerHTML = '';
+  editMembers.forEach((m, i) => {
+    const item = document.createElement('div');
+    item.className = 'mitem';
+    item.style.cursor = 'pointer';
+    item.addEventListener('click', () => openEditMember(i));
+
+    const bar = document.createElement('div');
+    bar.className = 'mbar';
+    bar.style.background = m.color;
+
+    const info = document.createElement('div');
+    info.className = 'minfo';
+    info.innerHTML = `<div class="mname">${TI[m.transport]} ${m.name}${m.target?' ('+m.target+'枚)':''}</div><div class="marea">${m.area ? '✓ エリア設定済み' : '⚠ エリア未設定 — エリア設定タブで描く'}</div>`;
+
+    const del = document.createElement('div');
+    del.className = 'mdel';
+    del.textContent = '✕';
+    del.addEventListener('click', (e) => {
+      e.stopPropagation();
+      delMember(i);
+    });
+
+    item.appendChild(bar);
+    item.appendChild(info);
+    item.appendChild(del);
+    c.appendChild(item);
+  });
 }
 
 function openAddMember() {
@@ -767,16 +786,42 @@ function renderSessList() {
     c.innerHTML = '<div style="padding:18px;text-align:center;color:var(--text3);font-size:13px">保存済みセッションなし</div>';
     return;
   }
-  c.innerHTML = sessions.map((s,i) => `
-    <div class="sitem">
-      <div class="sicon">📋</div>
-      <div class="sinfo" onclick="loadSession(sessions[${i}])">
-        <div class="sname">${s.title||'無題'}</div>
-        <div class="smeta">${s.date||''} / ${(s.members||[]).length}名 / ${s.total||'?'}枚</div>
-      </div>
-      <button class="sdel" onclick="doDeleteSession('${s.id}')">削除</button>
-      <div class="sarr" onclick="loadSession(sessions[${i}])">›</div>
-    </div>`).join('');
+  // innerHTML使わずDOMで構築（onclick属性の問題を回避）
+  c.innerHTML = '';
+  sessions.forEach((s, i) => {
+    const item = document.createElement('div');
+    item.className = 'sitem';
+
+    const icon = document.createElement('div');
+    icon.className = 'sicon';
+    icon.textContent = '📋';
+
+    const info = document.createElement('div');
+    info.className = 'sinfo';
+    info.style.cursor = 'pointer';
+    info.innerHTML = `<div class="sname">${s.title||'無題'}</div><div class="smeta">${s.date||''} / ${(s.members||[]).length}名 / ${s.total||'?'}枚</div>`;
+    info.addEventListener('click', () => loadSession(s));
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'sdel';
+    delBtn.textContent = '削除';
+    delBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      doDeleteSession(s.id);
+    });
+
+    const arr = document.createElement('div');
+    arr.className = 'sarr';
+    arr.textContent = '›';
+    arr.style.cursor = 'pointer';
+    arr.addEventListener('click', () => loadSession(s));
+
+    item.appendChild(icon);
+    item.appendChild(info);
+    item.appendChild(delBtn);
+    item.appendChild(arr);
+    c.appendChild(item);
+  });
 }
 
 async function doDeleteSession(id) {
@@ -1219,21 +1264,29 @@ function doCSV(){
 // ============================================================
 // Confirm modal
 // ============================================================
-function showConfirm(title,msg,cb){
-  document.getElementById('cf-title').textContent=title;
-  document.getElementById('cf-msg').textContent=msg;
-  confirmCb=cb;
+function showConfirm(title, msg, cb) {
+  document.getElementById('cf-title').textContent = title;
+  document.getElementById('cf-msg').textContent = msg;
+  // ボタンにイベントを毎回新しく設定
+  const okBtn = document.getElementById('cf-ok-btn');
+  const cancelBtn = document.getElementById('cf-cancel-btn');
+  // 古いイベントを削除するためにcloneNode
+  const newOk = okBtn.cloneNode(true);
+  const newCancel = cancelBtn.cloneNode(true);
+  okBtn.parentNode.replaceChild(newOk, okBtn);
+  cancelBtn.parentNode.replaceChild(newCancel, cancelBtn);
+  // 新しいイベント設定
+  newOk.addEventListener('click', () => {
+    document.getElementById('confirm-modal').classList.remove('on');
+    cb();
+  });
+  newCancel.addEventListener('click', () => {
+    document.getElementById('confirm-modal').classList.remove('on');
+  });
   document.getElementById('confirm-modal').classList.add('on');
 }
 function closeConfirm(){
   document.getElementById('confirm-modal').classList.remove('on');
-  confirmCb=null;
-}
-function execConfirm(){
-  // closeConfirmの前にcbを保存してから実行
-  const cb=confirmCb;
-  closeConfirm();
-  if(cb) cb();
 }
 </script>
 </body>
