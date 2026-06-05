@@ -134,11 +134,11 @@ html,body{height:100%;width:100%;overflow:hidden;font-family:'Noto Sans JP',sans
 
 #rbar{display:flex;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto}
 #rbar::-webkit-scrollbar{display:none}
-.rb{flex:1;min-width:70px;padding:5px 4px;text-align:center;cursor:pointer;border-right:1px solid var(--border);transition:background .1s}
+.rb{flex:1;min-width:60px;padding:5px 3px;text-align:center;cursor:pointer;border-right:1px solid var(--border);transition:background .1s;overflow:hidden}
 .rb:last-child{border-right:none}
 .rb.me{background:var(--surface2)}
-.rn{font-size:17px;font-weight:700;display:block;letter-spacing:-.02em}
-.rl{font-size:9px;color:var(--text2);display:block;margin-top:1px;white-space:nowrap;overflow:hidden}
+.rn{font-size:16px;font-weight:700;display:block;letter-spacing:-.02em}
+.rl{font-size:8.5px;color:var(--text2);display:block;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 2px}
 
 #s-map{position:absolute;left:0;right:0}
 #s-bot{position:absolute;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);height:58px;display:flex;align-items:center;z-index:100}
@@ -944,11 +944,12 @@ function addStaffMarker(mi, latlng, savedId) {
 }
 
 function bindSPop(obj, mi) {
+  const id = obj.id;
   obj.marker.bindPopup(`
     <div style="padding:12px 14px;min-width:140px">
       <div style="font-size:13px;font-weight:700;margin-bottom:10px">✅ 配布済み</div>
       <button style="width:100%;padding:9px;border-radius:9px;border:none;font-size:13px;font-weight:600;cursor:pointer;background:#fff1f0;color:#dc2626"
-        onclick="delSMarker('${obj.id}',${mi})">🗑 取り消し</button>
+        onclick="window._delMarker('${id}',${mi})">🗑 取り消し</button>
     </div>`, { maxWidth: 200 });
 }
 
@@ -960,17 +961,30 @@ function delSMarker(id, mi) {
   api(`markers?id=eq.${id}&session=eq.${sess.id}`, { method: 'DELETE' }).catch(() => {});
   updateAll();
 }
+// ポップアップのonclickからアクセスできるようグローバルに公開
+window._delMarker = delSMarker;
 
 function undoLast() {
   if (!history.length) { alert('元に戻せる操作がありません'); return; }
   const last = history.pop();
   delSMarker(last.id, last.mi);
+  updateAll();
 }
 
 function resetMy() {
   showConfirm('リセット', '自分のマーカーをすべて削除しますか？', () => {
-    [...sMarkers[myIdx]].forEach(mk => delSMarker(mk.id, myIdx));
+    const targets = [...sMarkers[myIdx]];
+    const sess = sessions[0];
+    // マップからマーカーを削除
+    targets.forEach(mk => {
+      try { smap.removeLayer(mk.marker); } catch(e) {}
+      // DBからも削除
+      if (sess) api(`markers?id=eq.${mk.id}&session=eq.${sess.id}`, { method: 'DELETE' }).catch(() => {});
+    });
+    sMarkers[myIdx] = [];
     history = history.filter(h => h.mi !== myIdx);
+    smap.closePopup();
+    updateAll();
   });
 }
 
@@ -1050,9 +1064,9 @@ function renderRbar(sess) {
   document.getElementById('rbar').innerHTML = (sess.members||[]).map((m, i) => {
     const done = sMarkers[i] ? sMarkers[i].length : 0;
     const rem = m.target ? Math.max(0, m.target-done) : '?';
-    return `<div class="rb${i===myIdx?' me':''}" style="border-top:3px solid ${m.color}" onclick="focusMember(${i},sess)">
+    return `<div class="rb${i===myIdx?' me':''}" style="border-top:3px solid ${m.color}" onclick="focusMember(${i})">
       <span class="rn" style="color:${m.color}">${rem}</span>
-      <span class="rl">${TI[m.transport]}${m.name}</span>
+      <span class="rl">${TI[m.transport]}${m.name.length > 4 ? m.name.slice(0,4)+'…' : m.name}</span>
     </div>`;
   }).join('');
 }
@@ -1064,7 +1078,8 @@ function updateBadge(sess) {
 }
 
 function focusMember(i) {
-  const sess = sessions[0]; if (!sess) return;
+  const sess = sessions[0];
+  if (!sess || !sess.members) return;
   const m = sess.members[i];
   if (m && m.area && smap) smap.fitBounds(L.latLngBounds(m.area.map(c=>L.latLng(c[0],c[1]))),{padding:[40,40]});
 }
