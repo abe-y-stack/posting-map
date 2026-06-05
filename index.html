@@ -125,32 +125,103 @@ html,body{height:100%;width:100%;overflow:hidden;font-family:'Noto Sans JP',sans
 .parr{color:var(--text3);font-size:20px;margin-left:auto}
 
 /* staff main */
-#staff-hdr{background:var(--surface);border-bottom:1px solid var(--border);height:54px;display:flex;align-items:center;padding:0 16px;gap:10px;flex-shrink:0;z-index:100}
+#staff-hdr{
+  background:rgba(255,255,255,0.92);
+  backdrop-filter:saturate(180%) blur(20px);
+  -webkit-backdrop-filter:saturate(180%) blur(20px);
+  border-bottom:0.5px solid rgba(0,0,0,0.1);
+  height:54px;display:flex;align-items:center;
+  padding:0 16px;gap:10px;flex-shrink:0;z-index:100;
+}
 .s-title{font-size:15px;font-weight:600;flex:1;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #sync-dot{width:8px;height:8px;border-radius:50%;background:var(--text3);transition:background .3s;flex-shrink:0}
 #sync-dot.ok{background:var(--green)}
 #sync-dot.err{background:var(--red)}
 #s-badge{font-size:12px;font-weight:600;color:var(--text2)}
 
-#rbar{display:flex;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto}
+#rbar{
+  display:flex;
+  background:rgba(255,255,255,0.92);
+  backdrop-filter:saturate(180%) blur(20px);
+  -webkit-backdrop-filter:saturate(180%) blur(20px);
+  border-bottom:0.5px solid rgba(0,0,0,0.1);
+  flex-shrink:0;overflow-x:auto;
+}
 #rbar::-webkit-scrollbar{display:none}
-.rb{flex:1;min-width:60px;padding:5px 3px;text-align:center;cursor:pointer;border-right:1px solid var(--border);transition:background .1s;overflow:hidden}
+.rb{
+  flex:1;min-width:72px;padding:6px 4px;text-align:center;cursor:pointer;
+  border-right:0.5px solid rgba(0,0,0,0.08);
+  transition:background .12s;overflow:hidden;
+  position:relative;
+}
 .rb:last-child{border-right:none}
-.rb.me{background:var(--surface2)}
-.rn{font-size:16px;font-weight:700;display:block;letter-spacing:-.02em}
-.rl{font-size:8.5px;color:var(--text2);display:block;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 2px}
+.rb.me{background:rgba(0,113,227,0.06)}
+.rn{
+  font-size:22px;font-weight:700;display:block;
+  letter-spacing:-.03em;line-height:1;margin-bottom:2px;
+}
+.rl{
+  font-size:9px;font-weight:600;letter-spacing:.02em;
+  color:rgba(60,60,67,0.6);display:block;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 3px;
+  text-transform:none;
+}
 
 #s-map{position:absolute;left:0;right:0}
-#s-bot{position:absolute;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);height:58px;display:flex;align-items:center;z-index:100}
-.sbb{flex:1;height:100%;border:none;background:none;font-size:10px;color:var(--text2);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-family:inherit}
-.sbb i{font-size:18px;line-height:1;font-style:normal}
+#s-bot{
+  position:absolute;bottom:0;left:0;right:0;
+  background:rgba(255,255,255,0.92);
+  backdrop-filter:saturate(180%) blur(20px);
+  -webkit-backdrop-filter:saturate(180%) blur(20px);
+  border-top:0.5px solid rgba(0,0,0,0.12);
+  height:72px;display:flex;align-items:center;
+  z-index:100;padding-bottom:env(safe-area-inset-bottom,0px);
+}
+.sbb{
+  flex:1;height:100%;border:none;background:none;
+  font-size:10.5px;font-weight:500;letter-spacing:.01em;
+  color:#3c3c43aa;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+  font-family:inherit;transition:opacity .15s;
+}
+.sbb:active{opacity:.4}
+.sbb i{font-size:22px;line-height:1;font-style:normal}
 .sbb:active{background:var(--surface2)}
-.sbsep{width:1px;height:26px;background:var(--border)}
+.sbsep{width:0.5px;height:32px;background:rgba(0,0,0,0.1)}
 
-#gps-btn{position:absolute;right:14px;z-index:200;width:42px;height:42px;border-radius:50%;background:var(--surface);border:1px solid var(--border);box-shadow:var(--sh);display:flex;align-items:center;justify-content:center;font-size:20px;cursor:pointer;font-style:normal}
+#gps-btn{
+  position:absolute;right:14px;z-index:200;
+  width:44px;height:44px;border-radius:50%;
+  background:rgba(255,255,255,0.95);
+  border:none;
+  box-shadow:0 2px 12px rgba(0,0,0,.15),0 0 0 0.5px rgba(0,0,0,.08);
+  display:flex;align-items:center;justify-content:center;
+  font-size:20px;cursor:pointer;font-style:normal;
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+  transition:transform .12s,opacity .12s;
+}
+#gps-btn:active{transform:scale(.92);opacity:.8}
 #gps-btn:active{background:var(--surface2)}
-#s-hint{position:absolute;z-index:200;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.7);color:#fff;padding:7px 18px;border-radius:99px;font-size:12px;white-space:nowrap;pointer-events:none;backdrop-filter:blur(8px);transition:opacity .5s}
-#s-leg{position:absolute;left:12px;z-index:199;background:rgba(255,255,255,.92);border-radius:var(--r2);padding:8px 12px;font-size:10px;border:1px solid var(--border);backdrop-filter:blur(10px);line-height:2}
+#s-hint{
+  position:absolute;z-index:200;left:50%;transform:translateX(-50%);
+  background:rgba(0,0,0,0.75);color:#fff;
+  padding:8px 20px;border-radius:99px;
+  font-size:12px;font-weight:500;letter-spacing:.01em;
+  white-space:nowrap;pointer-events:none;
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  transition:opacity .6s;box-shadow:0 2px 12px rgba(0,0,0,.2);
+}
+#s-leg{
+  position:absolute;left:12px;z-index:199;
+  background:rgba(255,255,255,0.85);
+  backdrop-filter:saturate(180%) blur(20px);
+  -webkit-backdrop-filter:saturate(180%) blur(20px);
+  border-radius:12px;padding:8px 12px;font-size:10px;
+  border:0.5px solid rgba(0,0,0,0.1);
+  box-shadow:0 2px 8px rgba(0,0,0,.08);
+  line-height:2;font-weight:500;
+}
 .lr{display:flex;align-items:center;gap:6px}
 .ld{width:16px;height:3px;border-radius:2px;flex-shrink:0}
 
@@ -277,8 +348,8 @@ html,body{height:100%;width:100%;overflow:hidden;font-family:'Noto Sans JP',sans
   <div id="staff-hdr">
     <button style="width:32px;height:32px;border-radius:50%;border:none;background:var(--surface2);cursor:pointer;font-size:16px" onclick="showPicker()">←</button>
     <div class="s-title" id="s-title">PostingMap</div>
-    <div id="sync-dot"></div>
-    <div id="s-badge" style="margin-left:6px">0/0</div>
+    <div id="sync-dot" style="width:8px;height:8px;border-radius:50%;background:#aeaeb2;transition:background .3s;flex-shrink:0"></div>
+    <div id="s-badge" style="margin-left:6px;font-size:12px;font-weight:600;color:rgba(60,60,67,0.6);background:rgba(0,0,0,0.05);padding:3px 10px;border-radius:99px">0/0</div>
   </div>
   <div id="rbar"></div>
   <div id="s-map"></div>
@@ -290,15 +361,30 @@ html,body{height:100%;width:100%;overflow:hidden;font-family:'Noto Sans JP',sans
     <div class="lr"><span style="font-size:11px">🏭</span>会社(拡大時)</div>
   </div>
   <div id="s-bot">
-    <button class="sbb" onclick="showStat()"><i>📊</i>進捗</button>
+    <button class="sbb" onclick="showStat()">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect x="3" y="12" width="4" height="9" rx="1" fill="currentColor"/><rect x="10" y="7" width="4" height="14" rx="1" fill="currentColor"/><rect x="17" y="3" width="4" height="18" rx="1" fill="currentColor"/></svg>
+      進捗
+    </button>
     <div class="sbsep"></div>
-    <button class="sbb" onclick="undoLast()"><i>↩️</i>戻す</button>
+    <button class="sbb" onclick="undoLast()">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M9 14L4 9l5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 9h10a6 6 0 0 1 0 12h-1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      戻す
+    </button>
     <div class="sbsep"></div>
-    <button class="sbb" onclick="resetMy()"><i>🗑️</i>リセット</button>
+    <button class="sbb" onclick="resetMy()">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><polyline points="3 6 5 6 21 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M19 6l-1 14H6L5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M9 6V4h6v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      リセット
+    </button>
     <div class="sbsep"></div>
-    <button class="sbb" onclick="centerGPS()"><i>🎯</i>現在地</button>
+    <button class="sbb" onclick="centerGPS()">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" fill="currentColor"/><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="2"/><line x1="12" y1="2" x2="12" y2="5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="19" x2="12" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="2" y1="12" x2="5" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="19" y1="12" x2="22" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      現在地
+    </button>
     <div class="sbsep"></div>
-    <button class="sbb" onclick="doCSV()"><i>💾</i>CSV</button>
+    <button class="sbb" onclick="doCSV()">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><polyline points="7 10 12 15 17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      保存
+    </button>
   </div>
 </div>
 
@@ -1129,14 +1215,32 @@ function updateAll() {
 }
 
 function renderRbar(sess) {
-  document.getElementById('rbar').innerHTML = (sess.members||[]).map((m, i) => {
+  const rbar = document.getElementById('rbar');
+  rbar.innerHTML = '';
+  (sess.members||[]).forEach((m, i) => {
     const done = sMarkers[i] ? sMarkers[i].length : 0;
     const rem = m.target ? Math.max(0, m.target-done) : '?';
-    return `<div class="rb${i===myIdx?' me':''}" style="border-top:3px solid ${m.color}" onclick="focusMember(${i})">
-      <span class="rn" style="color:${m.color}">${rem}</span>
-      <span class="rl">${TI[m.transport]}${m.name.length > 4 ? m.name.slice(0,4)+'…' : m.name}</span>
-    </div>`;
-  }).join('');
+    const pct = m.target ? Math.round(done/m.target*100) : 0;
+    const isMe = i === myIdx;
+    const div = document.createElement('div');
+    div.className = 'rb' + (isMe ? ' me' : '');
+    div.style.borderTop = `3px solid ${m.color}`;
+    // 名前ラベル（上）
+    const lbl = document.createElement('span');
+    lbl.className = 'rl';
+    lbl.style.color = m.color;
+    const shortName = m.name.length > 5 ? m.name.slice(0,5)+'…' : m.name;
+    lbl.textContent = TI[m.transport] + ' ' + shortName;
+    // 数字（下・大きく）
+    const num = document.createElement('span');
+    num.className = 'rn';
+    num.style.color = m.color;
+    num.textContent = rem;
+    div.appendChild(lbl);
+    div.appendChild(num);
+    div.addEventListener('click', () => focusMember(i));
+    rbar.appendChild(div);
+  });
 }
 
 function updateBadge(sess) {
