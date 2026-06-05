@@ -944,25 +944,44 @@ function addStaffMarker(mi, latlng, savedId) {
 }
 
 function bindSPop(obj, mi) {
-  const id = obj.id;
-  obj.marker.bindPopup(`
-    <div style="padding:12px 14px;min-width:140px">
+  // HTMLポップアップ + popupopenイベントでボタンにバインド（最も確実な方法）
+  const popupId = 'pop_' + obj.id.replace(/[^a-z0-9]/gi,'_');
+  obj.marker.bindPopup(
+    `<div style="padding:12px 14px;min-width:140px">
       <div style="font-size:13px;font-weight:700;margin-bottom:10px">✅ 配布済み</div>
-      <button style="width:100%;padding:9px;border-radius:9px;border:none;font-size:13px;font-weight:600;cursor:pointer;background:#fff1f0;color:#dc2626"
-        onclick="window._delMarker('${id}',${mi})">🗑 取り消し</button>
-    </div>`, { maxWidth: 200 });
+      <button id="${popupId}" style="width:100%;padding:9px;border-radius:9px;border:none;font-size:13px;font-weight:600;cursor:pointer;background:#fff1f0;color:#dc2626">🗑 取り消し</button>
+    </div>`,
+    { maxWidth: 200 }
+  );
+  obj.marker.on('popupopen', () => {
+    const btn = document.getElementById(popupId);
+    if (btn) {
+      btn.onclick = null;
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        delSMarker(obj.id, mi);
+      }, { once: true });
+    }
+  });
 }
 
 function delSMarker(id, mi) {
+  // マップからマーカーを削除
   const idx = sMarkers[mi].findIndex(m => m.id === id);
-  if (idx !== -1) { smap.removeLayer(sMarkers[mi][idx].marker); sMarkers[mi].splice(idx, 1); }
+  if (idx !== -1) {
+    try { smap.removeLayer(sMarkers[mi][idx].marker); } catch(e) {}
+    sMarkers[mi].splice(idx, 1);
+  }
   smap.closePopup();
+  // Supabaseから削除
   const sess = sessions[0];
-  api(`markers?id=eq.${id}&session=eq.${sess.id}`, { method: 'DELETE' }).catch(() => {});
+  if (sess && sess.id) {
+    api(`markers?id=eq.${id}&session=eq.${sess.id}`, { method: 'DELETE' })
+      .then(r => { if(!r.ok) console.error('削除失敗', id); })
+      .catch(e => console.error('削除エラー', e));
+  }
   updateAll();
 }
-// ポップアップのonclickからアクセスできるようグローバルに公開
-window._delMarker = delSMarker;
 
 function undoLast() {
   if (!history.length) { alert('元に戻せる操作がありません'); return; }
