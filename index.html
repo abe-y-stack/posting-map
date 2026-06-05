@@ -338,7 +338,7 @@ html,body{height:100%;width:100%;overflow:hidden;font-family:'Noto Sans JP',sans
     <div class="ms" id="cf-msg">よろしいですか？</div>
     <div class="mrow">
       <button class="mbtn g" onclick="closeConfirm()">キャンセル</button>
-      <button class="mbtn d" id="cf-ok">削除</button>
+      <button class="mbtn d" onclick="execConfirm()">削除</button>
     </div>
   </div>
 </div>
@@ -992,17 +992,21 @@ function undoLast() {
 
 function resetMy() {
   showConfirm('リセット', '自分のマーカーをすべて削除しますか？', () => {
-    const targets = [...sMarkers[myIdx]];
     const sess = sessions[0];
-    // マップからマーカーを削除
-    targets.forEach(mk => {
+    if (!sess) return;
+    // まずマップから全マーカーを削除
+    sMarkers[myIdx].forEach(mk => {
       try { smap.removeLayer(mk.marker); } catch(e) {}
-      // DBからも削除
-      if (sess) api(`markers?id=eq.${mk.id}&session=eq.${sess.id}`, { method: 'DELETE' }).catch(() => {});
     });
+    // IDリストを保存してからクリア
+    const ids = sMarkers[myIdx].map(mk => mk.id);
     sMarkers[myIdx] = [];
     history = history.filter(h => h.mi !== myIdx);
     smap.closePopup();
+    // DBから削除（非同期・画面更新は先に実施）
+    ids.forEach(id => {
+      api(`markers?id=eq.${id}&session=eq.${sess.id}`, { method: 'DELETE' }).catch(() => {});
+    });
     updateAll();
   });
 }
@@ -1221,8 +1225,16 @@ function showConfirm(title,msg,cb){
   confirmCb=cb;
   document.getElementById('confirm-modal').classList.add('on');
 }
-function closeConfirm(){document.getElementById('confirm-modal').classList.remove('on');confirmCb=null;}
-document.getElementById('cf-ok').onclick=()=>{closeConfirm();if(confirmCb)confirmCb();};
+function closeConfirm(){
+  document.getElementById('confirm-modal').classList.remove('on');
+  confirmCb=null;
+}
+function execConfirm(){
+  // closeConfirmの前にcbを保存してから実行
+  const cb=confirmCb;
+  closeConfirm();
+  if(cb) cb();
+}
 </script>
 </body>
 </html>
