@@ -412,11 +412,14 @@ function showAdmin() {
   initAdminMap();
 }
 
-function showStaff() {
+async function showStaff() {
   document.getElementById('staff-screen').classList.add('show');
   document.getElementById('top-screen').classList.add('hide');
-  loadSessions();
+  // ローディング表示
+  const grid = document.getElementById('picker-grid');
+  grid.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text2);font-size:14px">🔄 セッションを読み込み中...</div>';
   showMemberPicker();
+  await loadSessions(); // 完全に読み込んでからピッカーを更新
 }
 
 function backToTop() {
@@ -605,15 +608,24 @@ function saveSession() {
   saveSessions();
   renderSavedSessions();
 
-  // Supabaseにも保存
+  // Supabaseにupsert保存（同じidは上書き）
   sb('sessions', {
     method: 'POST',
-    prefer: 'resolution=merge-duplicates,return=minimal',
-    headers: { 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+    prefer: 'return=minimal',
+    headers: {
+      'Prefer': 'resolution=merge-duplicates,return=minimal',
+      'Content-Type': 'application/json'
+    },
     body: JSON.stringify({ id: session.id, data: JSON.stringify(session) })
-  }).catch(() => {});
+  }).then(r => {
+    if (r.ok) console.log('Supabase保存成功');
+    else r.text().then(t => console.error('Supabase保存失敗:', t));
+  }).catch(e => console.error('Supabase保存エラー:', e));
 
-  alert(`「${title}」を保存しました！\nスタッフ側でこのセッションを選んで開始できます。`);
+  // 保存成功メッセージ（少し待ってから表示）
+  setTimeout(() => {
+    alert(`「${title}」を保存しました！\nスタッフ側でこのセッションを選んで開始できます。`);
+  }, 500);
 }
 
 // ============================================================
@@ -674,25 +686,41 @@ function saveSessions() {
   try { localStorage.setItem('pm_sessions_v2', JSON.stringify(sessions)); } catch(e) {}
 }
 
-function loadSessions() {
+async function loadSessions() {
+  // まずlocalStorageから読み込み
   try {
     const raw = localStorage.getItem('pm_sessions_v2');
     sessions = raw ? JSON.parse(raw) : [];
   } catch(e) { sessions = []; }
-  // Supabaseからも取得（非同期）
-  sb('sessions?select=*', { method: 'GET', json: true, prefer: '' })
-    .then(data => {
-      if (!Array.isArray(data)) return;
+
+  // Supabaseから最新を取得（こちらが正）
+  try {
+    const data = await sb('sessions?select=*&order=created_at.desc', {
+      method: 'GET', json: true, prefer: ''
+    });
+    if (Array.isArray(data) && data.length > 0) {
+      // Supabaseのデータで上書き（最新が正）
+      const sbSessions = [];
       data.forEach(row => {
         try {
           const s = JSON.parse(row.data);
-          if (!sessions.find(x => x.id === s.id)) sessions.unshift(s);
+          sbSessions.push(s);
         } catch(e) {}
       });
+      // localStorageにないものを追加、あるものは上書き
+      sbSessions.forEach(s => {
+        const idx = sessions.findIndex(x => x.id === s.id);
+        if (idx >= 0) sessions[idx] = s; // 上書き
+        else sessions.unshift(s); // 追加
+      });
       saveSessions();
-      renderSavedSessions();
-      renderPickerGrid();
-    }).catch(() => {});
+    }
+  } catch(e) {
+    console.warn('Supabase読み込み失敗、localStorageを使用:', e);
+  }
+
+  renderSavedSessions();
+  renderPickerGrid();
 }
 
 // ============================================================
