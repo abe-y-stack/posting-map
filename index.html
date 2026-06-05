@@ -149,7 +149,7 @@ html,body{height:100%;width:100%;overflow:hidden;font-family:'Noto Sans JP',sans
 }
 #rbar::-webkit-scrollbar{display:none}
 .rb{
-  flex:1;min-width:72px;padding:6px 4px;text-align:center;cursor:pointer;
+  flex:1;min-width:72px;padding:8px 4px 10px;text-align:center;cursor:pointer;
   border-right:0.5px solid rgba(0,0,0,0.08);
   transition:background .12s;overflow:hidden;
   position:relative;
@@ -174,20 +174,25 @@ html,body{height:100%;width:100%;overflow:hidden;font-family:'Noto Sans JP',sans
   backdrop-filter:saturate(180%) blur(20px);
   -webkit-backdrop-filter:saturate(180%) blur(20px);
   border-top:0.5px solid rgba(0,0,0,0.12);
-  height:72px;display:flex;align-items:center;
-  z-index:100;padding-bottom:env(safe-area-inset-bottom,0px);
+  height:calc(72px + env(safe-area-inset-bottom,0px));
+  display:flex;align-items:flex-start;
+  padding-top:8px;
+  z-index:100;
 }
 .sbb{
-  flex:1;height:100%;border:none;background:none;
-  font-size:10.5px;font-weight:500;letter-spacing:.01em;
-  color:#3c3c43aa;cursor:pointer;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+  flex:1;height:auto;border:none;background:none;
+  font-size:10px;font-weight:500;letter-spacing:.01em;
+  color:#3c3c43;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+  gap:4px;padding:0 0 2px;
   font-family:inherit;transition:opacity .15s;
 }
 .sbb:active{opacity:.4}
 .sbb i{font-size:22px;line-height:1;font-style:normal}
 .sbb:active{background:var(--surface2)}
 .sbsep{width:0.5px;height:32px;background:rgba(0,0,0,0.1)}
+.sbb svg{width:24px;height:24px;color:#3c3c43;opacity:0.8}
+.sbb:active svg{opacity:0.4}
 
 #gps-btn{
   position:absolute;right:14px;z-index:200;
@@ -970,6 +975,8 @@ function joinStaff(idx) {
   history = [];
 
   layoutStaff();
+  // rbar描画後に再レイアウト（高さが変わるため）
+  setTimeout(layoutStaff, 50);
   drawZones(sess);
   renderRbar(sess);
   updateBadge(sess);
@@ -983,7 +990,10 @@ function joinStaff(idx) {
 
 function layoutStaff() {
   const hH = document.getElementById('staff-hdr').offsetHeight;
-  const rH = 44, bH = 58;
+  const rH = document.getElementById('rbar').offsetHeight || 52;
+  // iPhoneのセーフエリア対応（ホームバーの高さ分）
+  const safeBottom = window.innerHeight - document.documentElement.clientHeight || 0;
+  const bH = 72 + Math.max(safeBottom, 0);
   document.getElementById('rbar').style.top = hH + 'px';
   document.getElementById('s-map').style.top = (hH + rH) + 'px';
   document.getElementById('s-map').style.bottom = bH + 'px';
