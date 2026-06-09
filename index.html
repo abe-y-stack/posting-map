@@ -1139,6 +1139,7 @@ function drawApartments() {
           delete aptRecords[apt.id];
           saveAptRecords();
           refreshAptIcon(apt);
+          updateAll();
           marker.closePopup();
           setTimeout(() => marker.openPopup(), 100);
         });
@@ -1192,6 +1193,8 @@ function drawApartments() {
           refreshAptIcon(apt);
           marker.closePopup();
           updateAptBadge();
+          // 残件バーと進捗バッジも更新
+          updateAll();
         });
         div.appendChild(doneBtn);
       }
@@ -1472,13 +1475,33 @@ function updateAll() {
   updateBadge(sess);
 }
 
+// 集合住宅の配布済み合計枚数を返す
+function aptDoneTotal() {
+  return APARTMENTS.reduce((s, a) => s + (aptRecords[a.id]?.done ? (aptRecords[a.id]?.qty || 0) : 0), 0);
+}
+
 function renderRbar(sess) {
   const rbar = document.getElementById('rbar');
   rbar.innerHTML = '';
+  // 集合住宅完了枚数を全体のdoneに加算して残件計算
+  const aptTotal = aptDoneTotal();
+  // 全体target
+  const totalTarget = sess.members.reduce((s, m) => s + (m.target||0), 0);
+  // 全体done（通常マーカー＋集合住宅）
+  const markerDoneAll = sMarkers.reduce((s, a) => s + a.length, 0);
+  const totalDone = markerDoneAll + aptTotal;
+
   (sess.members||[]).forEach((m, i) => {
-    const done = sMarkers[i] ? sMarkers[i].length : 0;
-    const rem = m.target ? Math.max(0, m.target-done) : '?';
-    const pct = m.target ? Math.round(done/m.target*100) : 0;
+    // このメンバーの通常マーカー数
+    const markerDone = sMarkers[i] ? sMarkers[i].length : 0;
+    // 集合住宅枚数は全体から按分して加算（車担当メンバーに集合住宅を均等配分）
+    // ただし全体のremainから集合住宅を引いた値を残件として表示
+    const myShare = m.target || 0;
+    // 残件 = 自分のtarget - 自分のマーカー - (集合住宅合計 × 自分のtarget比率)
+    const aptShare = totalTarget > 0 ? Math.round(aptTotal * myShare / totalTarget) : 0;
+    const done = markerDone + aptShare;
+    const rem = m.target ? Math.max(0, m.target - done) : '?';
+    const pct = m.target ? Math.round(done / m.target * 100) : 0;
     const isMe = i === myIdx;
     const div = document.createElement('div');
     div.className = 'rb' + (isMe ? ' me' : '');
@@ -1502,7 +1525,9 @@ function renderRbar(sess) {
 }
 
 function updateBadge(sess) {
-  const td = sMarkers.reduce((s, a) => s + a.length, 0);
+  const markerDone = sMarkers.reduce((s, a) => s + a.length, 0);
+  const aptDone = aptDoneTotal();
+  const td = markerDone + aptDone;
   const tt = sess.total || sess.members.reduce((s, m) => s+(m.target||0), 0);
   document.getElementById('s-badge').textContent = `${td}/${tt}`;
 }
@@ -1606,8 +1631,13 @@ function centerGPS(){if(gpsM)smap.setView(gpsM.getLatLng(),17);}
 function showStat() {
   const sess=sessions[0]; if(!sess)return;
   let td=0;
+  const totalTarget = sess.members.reduce((s,m)=>s+(m.target||0),0);
+  const aptTotal = aptDoneTotal();
   const rows=(sess.members||[]).map((m,i)=>{
-    const done=sMarkers[i]?sMarkers[i].length:0;
+    const markerDone=sMarkers[i]?sMarkers[i].length:0;
+    const myShare = m.target||0;
+    const aptShare = totalTarget>0 ? Math.round(aptTotal*myShare/totalTarget) : 0;
+    const done = markerDone + aptShare;
     const rem=m.target?Math.max(0,m.target-done):'?';
     const pct=m.target?Math.round(done/m.target*100):0;
     td+=done;
