@@ -192,6 +192,17 @@ html,body{height:100%;width:100%;overflow:hidden;font-family:'Noto Sans JP',sans
 .sbb:active{background:var(--surface2)}
 .sbsep{width:0.5px;height:32px;background:rgba(0,0,0,0.1)}
 .sbb svg{width:24px;height:24px;color:#3c3c43;opacity:0.8}
+/* ポップアップ幅をスマホに合わせて制御 */
+.leaflet-popup-content-wrapper{
+  border-radius:14px !important;
+  box-shadow:0 4px 24px rgba(0,0,0,.15) !important;
+  max-width:calc(100vw - 40px) !important;
+}
+.leaflet-popup-content{
+  margin:0 !important;
+  width:auto !important;
+  max-width:calc(100vw - 60px) !important;
+}
 .sbb:active svg{opacity:0.4}
 
 #gps-btn{
@@ -1073,7 +1084,7 @@ function aptIconHtml(apt) {
 function refreshAptIcon(apt) {
   const m = aptMarkers[apt.id];
   if (!m) return;
-  const icon = L.divIcon({ html: aptIconHtml(apt), iconSize:[140,36], iconAnchor:[70,36], className:'' });
+  const icon = L.divIcon({ html: aptIconHtml(apt), iconSize:[140,36], iconAnchor:[70,36], popupAnchor:[-60,-36], className:'' });
   m.setIcon(icon);
 }
 
@@ -1081,12 +1092,18 @@ function drawApartments() {
   APARTMENTS.forEach(apt => {
     const icon = L.divIcon({
       html: aptIconHtml(apt),
-      iconSize: [140, 36], iconAnchor: [70, 36], className: ''
+      iconSize: [140, 36], iconAnchor: [70, 36], popupAnchor: [-60, -36], className: ''
     });
     const marker = L.marker([apt.lat, apt.lng], { icon, zIndexOffset: 600 }).addTo(smap);
     aptMarkers[apt.id] = marker;
 
-    const popup = L.popup({ maxWidth: 260, minWidth: 230 });
+    const popup = L.popup({
+      maxWidth: 240,
+      minWidth: 220,
+      autoPan: true,
+      autoPanPadding: [20, 20],
+      keepInView: true
+    });
     marker.on('popupopen', () => {
       const rec = aptRecords[apt.id];
       const isDone = rec && rec.done;
