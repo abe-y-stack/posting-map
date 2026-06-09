@@ -504,11 +504,11 @@ const TI = { car:'🚗', bike:'🚲', walk:'🚶' };
 
 // ── 集合住宅データ（固定） ──────────────────────────────
 const APARTMENTS = [
-  { id:'apt0', name:'県営川越久下戸住宅', addr:'埼玉県川越市久下戸1-1',    lat:35.904626, lng:139.526422, units:212, defaultQty:212 },
-  { id:'apt1', name:'並木7-22住宅',       addr:'埼玉県川越市並木7-22',     lat:35.904987, lng:139.517090, units:50,  defaultQty:50  },
-  { id:'apt2', name:'並木88-4住宅',       addr:'埼玉県川越市並木88-4',     lat:35.903728, lng:139.517126, units:30,  defaultQty:30  },
-  { id:'apt3', name:'南古谷39-2住宅',     addr:'埼玉県川越市南古谷39-2',   lat:35.904512, lng:139.520019, units:40,  defaultQty:40  },
-  { id:'apt4', name:'並木新町18-8住宅',   addr:'埼玉県川越市並木新町18-8', lat:35.900929, lng:139.516758, units:30,  defaultQty:30  },
+  { id:'apt0', name:'県営川越久下戸住宅', addr:'埼玉県川越市久下戸1-1',    lat:35.904626, lng:139.526422, units:212, defaultQty:212, ownerName:'中野主任' },
+  { id:'apt1', name:'並木7-22住宅',       addr:'埼玉県川越市並木7-22',     lat:35.904987, lng:139.517090, units:50,  defaultQty:50,  ownerName:'中野主任' },
+  { id:'apt2', name:'並木88-4住宅',       addr:'埼玉県川越市並木88-4',     lat:35.903728, lng:139.517126, units:30,  defaultQty:30,  ownerName:'中野主任' },
+  { id:'apt3', name:'南古谷39-2住宅',     addr:'埼玉県川越市南古谷39-2',   lat:35.904512, lng:139.520019, units:40,  defaultQty:40,  ownerName:'河野' },
+  { id:'apt4', name:'並木新町18-8住宅',   addr:'埼玉県川越市並木新町18-8', lat:35.900929, lng:139.516758, units:30,  defaultQty:30,  ownerName:'河野' },
 ];
 // 集合住宅配布記録: { aptId -> { qty, done, ts } }
 let aptRecords = {};
@@ -1121,6 +1121,12 @@ function drawApartments() {
       const addr = document.createElement('div');
       addr.style.cssText = 'font-size:11px;color:#888;margin-bottom:12px';
       addr.textContent = apt.addr + '（目安 ' + apt.units + '戸）';
+
+      // 担当者タグ
+      const ownerTag = document.createElement('div');
+      ownerTag.style.cssText = 'display:inline-block;background:#f0f0f5;color:#555;border-radius:99px;padding:2px 10px;font-size:11px;font-weight:600;margin-bottom:10px';
+      ownerTag.textContent = '担当: ' + apt.ownerName;
+      div.appendChild(ownerTag);
       div.appendChild(addr);
 
       if (isDone) {
@@ -1475,31 +1481,31 @@ function updateAll() {
   updateBadge(sess);
 }
 
-// 集合住宅の配布済み合計枚数を返す
+// 全集合住宅の配布済み合計枚数
 function aptDoneTotal() {
   return APARTMENTS.reduce((s, a) => s + (aptRecords[a.id]?.done ? (aptRecords[a.id]?.qty || 0) : 0), 0);
+}
+
+// メンバーインデックスに対応する集合住宅の配布済み枚数
+function aptDoneForMember(memberIdx) {
+  const sess = sessions[0];
+  if (!sess) return 0;
+  const memberName = sess.members[memberIdx]?.name || '';
+  return APARTMENTS
+    .filter(a => a.ownerName === memberName)
+    .reduce((s, a) => s + (aptRecords[a.id]?.done ? (aptRecords[a.id]?.qty || 0) : 0), 0);
 }
 
 function renderRbar(sess) {
   const rbar = document.getElementById('rbar');
   rbar.innerHTML = '';
-  // 集合住宅完了枚数を全体のdoneに加算して残件計算
-  const aptTotal = aptDoneTotal();
-  // 全体target
-  const totalTarget = sess.members.reduce((s, m) => s + (m.target||0), 0);
-  // 全体done（通常マーカー＋集合住宅）
-  const markerDoneAll = sMarkers.reduce((s, a) => s + a.length, 0);
-  const totalDone = markerDoneAll + aptTotal;
+
 
   (sess.members||[]).forEach((m, i) => {
-    // このメンバーの通常マーカー数
+    // 通常タップ数 + そのメンバー担当の集合住宅配布枚数
     const markerDone = sMarkers[i] ? sMarkers[i].length : 0;
-    // 集合住宅枚数は全体から按分して加算（車担当メンバーに集合住宅を均等配分）
-    // ただし全体のremainから集合住宅を引いた値を残件として表示
-    const myShare = m.target || 0;
-    // 残件 = 自分のtarget - 自分のマーカー - (集合住宅合計 × 自分のtarget比率)
-    const aptShare = totalTarget > 0 ? Math.round(aptTotal * myShare / totalTarget) : 0;
-    const done = markerDone + aptShare;
+    const aptDone = aptDoneForMember(i);
+    const done = markerDone + aptDone;
     const rem = m.target ? Math.max(0, m.target - done) : '?';
     const pct = m.target ? Math.round(done / m.target * 100) : 0;
     const isMe = i === myIdx;
@@ -1631,13 +1637,11 @@ function centerGPS(){if(gpsM)smap.setView(gpsM.getLatLng(),17);}
 function showStat() {
   const sess=sessions[0]; if(!sess)return;
   let td=0;
-  const totalTarget = sess.members.reduce((s,m)=>s+(m.target||0),0);
-  const aptTotal = aptDoneTotal();
+
   const rows=(sess.members||[]).map((m,i)=>{
     const markerDone=sMarkers[i]?sMarkers[i].length:0;
-    const myShare = m.target||0;
-    const aptShare = totalTarget>0 ? Math.round(aptTotal*myShare/totalTarget) : 0;
-    const done = markerDone + aptShare;
+    const aptDone = aptDoneForMember(i);
+    const done = markerDone + aptDone;
     const rem=m.target?Math.max(0,m.target-done):'?';
     const pct=m.target?Math.round(done/m.target*100):0;
     td+=done;
