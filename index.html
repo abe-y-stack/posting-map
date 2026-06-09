@@ -504,11 +504,11 @@ const TI = { car:'🚗', bike:'🚲', walk:'🚶' };
 
 // ── 集合住宅データ（固定） ──────────────────────────────
 const APARTMENTS = [
-  { id:'apt0', name:'県営川越久下戸住宅', addr:'埼玉県川越市久下戸1-1',    lat:35.904626, lng:139.526422, units:212, defaultQty:212, ownerName:'中野主任' },
-  { id:'apt1', name:'並木7-22住宅',       addr:'埼玉県川越市並木7-22',     lat:35.904987, lng:139.517090, units:50,  defaultQty:50,  ownerName:'中野主任' },
-  { id:'apt2', name:'並木88-4住宅',       addr:'埼玉県川越市並木88-4',     lat:35.903728, lng:139.517126, units:30,  defaultQty:30,  ownerName:'中野主任' },
-  { id:'apt3', name:'南古谷39-2住宅',     addr:'埼玉県川越市南古谷39-2',   lat:35.904512, lng:139.520019, units:40,  defaultQty:40,  ownerName:'河野' },
-  { id:'apt4', name:'並木新町18-8住宅',   addr:'埼玉県川越市並木新町18-8', lat:35.900929, lng:139.516758, units:30,  defaultQty:30,  ownerName:'河野' },
+  { id:'apt0', name:'県営川越久下戸住宅', addr:'埼玉県川越市久下戸1-1',    lat:35.904626, lng:139.526422, units:212, defaultQty:212 },
+  { id:'apt1', name:'並木7-22住宅',       addr:'埼玉県川越市並木7-22',     lat:35.904987, lng:139.517090, units:50,  defaultQty:50  },
+  { id:'apt2', name:'並木88-4住宅',       addr:'埼玉県川越市並木88-4',     lat:35.903728, lng:139.517126, units:30,  defaultQty:30  },
+  { id:'apt3', name:'南古谷39-2住宅',     addr:'埼玉県川越市南古谷39-2',   lat:35.904512, lng:139.520019, units:40,  defaultQty:40  },
+  { id:'apt4', name:'並木新町18-8住宅',   addr:'埼玉県川越市並木新町18-8', lat:35.900929, lng:139.516758, units:30,  defaultQty:30  },
 ];
 // 集合住宅配布記録: { aptId -> { qty, done, ts } }
 let aptRecords = {};
@@ -1122,19 +1122,17 @@ function drawApartments() {
       addr.style.cssText = 'font-size:11px;color:#888;margin-bottom:12px';
       addr.textContent = apt.addr + '（目安 ' + apt.units + '戸）';
 
-      // 担当者タグ
-      const ownerTag = document.createElement('div');
-      ownerTag.style.cssText = 'display:inline-block;background:#f0f0f5;color:#555;border-radius:99px;padding:2px 10px;font-size:11px;font-weight:600;margin-bottom:10px';
-      ownerTag.textContent = '担当: ' + apt.ownerName;
-      div.appendChild(ownerTag);
+
       div.appendChild(addr);
 
       if (isDone) {
         // ── 完了済み表示 ──
         const doneBox = document.createElement('div');
         doneBox.style.cssText = 'background:#f0fdf4;border:1.5px solid #22c55e;border-radius:10px;padding:10px 12px;margin-bottom:10px;text-align:center';
-        doneBox.innerHTML = `<div style="font-size:22px;font-weight:700;color:#15803d">${rec.qty} <span style="font-size:13px">枚</span></div>
-          <div style="font-size:11px;color:#16a34a;margin-top:2px">✓ 配布完了</div>`;
+        const memberName = rec.memberName || '';
+        doneBox.innerHTML = `
+          <div style="font-size:22px;font-weight:700;color:#15803d">${rec.qty} <span style="font-size:13px">枚</span></div>
+          <div style="font-size:11px;color:#16a34a;margin-top:2px">✓ 配布完了${memberName ? ' (' + memberName + ')' : ''}</div>`;
         div.appendChild(doneBox);
 
         // 修正ボタン
@@ -1153,9 +1151,40 @@ function drawApartments() {
 
       } else {
         // ── 未完了: 枚数入力 ──
+        // 担当者セレクター
+        const memberLabel = document.createElement('div');
+        memberLabel.style.cssText = 'font-size:12px;font-weight:600;color:#555;margin-bottom:6px';
+        memberLabel.textContent = '配った人';
+        div.appendChild(memberLabel);
+
+        const memberSel = document.createElement('div');
+        memberSel.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px';
+        const sess = sessions[0];
+        let selectedMemberId = sess?.members[myIdx]?.id || '';
+        let selectedMemberName = sess?.members[myIdx]?.name || '';
+        (sess?.members || []).forEach(m => {
+          const btn = document.createElement('button');
+          btn.dataset.mid = m.id;
+          btn.dataset.mname = m.name;
+          btn.style.cssText = `padding:6px 14px;border-radius:99px;border:2px solid ${m.color};font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .12s;background:${m.id===selectedMemberId?m.color:'#fff'};color:${m.id===selectedMemberId?'#fff':m.color}`;
+          btn.textContent = TI[m.transport] + ' ' + m.name;
+          btn.addEventListener('click', () => {
+            selectedMemberId = m.id;
+            selectedMemberName = m.name;
+            memberSel.querySelectorAll('button').forEach(b => {
+              const bm = sess.members.find(x => x.id === b.dataset.mid);
+              if (!bm) return;
+              b.style.background = b.dataset.mid === selectedMemberId ? bm.color : '#fff';
+              b.style.color      = b.dataset.mid === selectedMemberId ? '#fff' : bm.color;
+            });
+          });
+          memberSel.appendChild(btn);
+        });
+        div.appendChild(memberSel);
+
         const label = document.createElement('div');
         label.style.cssText = 'font-size:12px;font-weight:600;color:#555;margin-bottom:6px';
-        label.textContent = '配布枚数を入力';
+        label.textContent = '配布枚数';
         div.appendChild(label);
 
         // 枚数入力欄
@@ -1193,9 +1222,9 @@ function drawApartments() {
         doneBtn.addEventListener('click', () => {
           const qty = parseInt(input.value);
           if (!qty || qty < 1) { input.style.borderColor='#ff3b30'; return; }
-          aptRecords[apt.id] = { qty, done: true, ts: Date.now() };
+          aptRecords[apt.id] = { qty, done: true, memberId: selectedMemberId, memberName: selectedMemberName, ts: Date.now() };
           saveAptRecords();
-          saveAptToSupabase(apt, qty);
+          saveAptToSupabase(apt, qty, selectedMemberId, selectedMemberName);
           refreshAptIcon(apt);
           marker.closePopup();
           updateAptBadge();
@@ -1221,12 +1250,12 @@ function drawApartments() {
 }
 
 // 集合住宅配布をSupabaseに保存
-async function saveAptToSupabase(apt, qty) {
+async function saveAptToSupabase(apt, qty, memberId, memberName) {
   const sess = sessions[0]; if (!sess) return;
   await api('apt_records', {
     method: 'POST',
     headers: { 'Prefer': 'resolution=merge-duplicates,return=minimal' },
-    body: JSON.stringify({ session_id: sess.id, apt_id: apt.id, apt_name: apt.name, qty, done: true })
+    body: JSON.stringify({ session_id: sess.id, apt_id: apt.id, apt_name: apt.name, qty, done: true, member_id: memberId, member_name: memberName })
   }).catch(() => {});
 }
 
@@ -1245,7 +1274,7 @@ function loadAptRecords() {
     .then(data => {
       if (!Array.isArray(data)) return;
       data.forEach(d => {
-        aptRecords[d.apt_id] = { qty: d.qty, done: d.done, ts: Date.now() };
+        aptRecords[d.apt_id] = { qty: d.qty, done: d.done, memberId: d.member_id, memberName: d.member_name, ts: Date.now() };
       });
       saveAptRecords();
       APARTMENTS.forEach(apt => refreshAptIcon(apt));
@@ -1490,10 +1519,16 @@ function aptDoneTotal() {
 function aptDoneForMember(memberIdx) {
   const sess = sessions[0];
   if (!sess) return 0;
-  const memberName = sess.members[memberIdx]?.name || '';
+  const memberId = sess.members[memberIdx]?.id || '';
   return APARTMENTS
-    .filter(a => a.ownerName === memberName)
-    .reduce((s, a) => s + (aptRecords[a.id]?.done ? (aptRecords[a.id]?.qty || 0) : 0), 0);
+    .reduce((s, a) => {
+      const rec = aptRecords[a.id];
+      // このメンバーが配った分だけ合計
+      if (rec && rec.done && rec.memberId === memberId) {
+        return s + (rec.qty || 0);
+      }
+      return s;
+    }, 0);
 }
 
 function renderRbar(sess) {
