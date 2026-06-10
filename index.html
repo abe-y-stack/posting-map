@@ -372,6 +372,9 @@ html,body{height:100%;width:100%;overflow:hidden;font-family:'Noto Sans JP',sans
   <div id="s-map"></div>
   <i id="gps-btn" onclick="centerGPS()">🎯</i>
   <div id="s-hint">タップして配布済みマーク</div>
+<div id="add-apt-hint" style="display:none;position:absolute;z-index:201;left:50%;transform:translateX(-50%);background:#ff9500;color:#fff;padding:8px 20px;border-radius:99px;font-size:12px;font-weight:700;white-space:nowrap;pointer-events:none;box-shadow:0 2px 12px rgba(255,149,0,.4)">
+  🏢 追加したい場所をタップ　　キャンセルは再度ボタンを押す
+</div>
   <div id="s-leg">
     <div class="lr"><div class="ld" style="background:#22c55e"></div>配布済み</div>
     <div class="lr"><span style="font-size:11px">🏢</span>集合住宅</div>
@@ -396,6 +399,17 @@ html,body{height:100%;width:100%;overflow:hidden;font-family:'Noto Sans JP',sans
     <button class="sbb" onclick="centerGPS()">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" fill="currentColor"/><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="2"/><line x1="12" y1="2" x2="12" y2="5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="19" x2="12" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="2" y1="12" x2="5" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="19" y1="12" x2="22" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
       現在地
+    </button>
+    <div class="sbsep"></div>
+    <button class="sbb" id="add-apt-btn" onclick="toggleAddAptMode()">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+        <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/>
+        <path d="M9 22V12h6v10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <path d="M3 9h18" stroke="currentColor" stroke-width="2"/>
+        <circle cx="19" cy="5" r="4" fill="currentColor"/>
+        <path d="M19 3v4M17 5h4" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      集合住宅追加
     </button>
     <div class="sbsep"></div>
     <button class="sbb" onclick="resetMy()">
@@ -425,6 +439,27 @@ html,body{height:100%;width:100%;overflow:hidden;font-family:'Noto Sans JP',sans
   </div>
 </div>
 <!-- stat -->
+<!-- 集合住宅追加モーダル -->
+<div class="mbg" id="add-apt-modal">
+  <div class="mbox">
+    <div class="mt">🏢 集合住宅を追加</div>
+    <div class="ms">名前・枚数・担当者を入力してください</div>
+    <input class="mi" id="new-apt-name" placeholder="例: ○○団地 A棟" maxlength="30">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+      <label style="font-size:13px;font-weight:600;color:#555;white-space:nowrap;flex-shrink:0">目安戸数</label>
+      <input class="mi" id="new-apt-units" type="number" placeholder="例: 50" min="1" style="margin-bottom:0;flex:1">
+      <label style="font-size:13px;font-weight:600;color:#555;white-space:nowrap;flex-shrink:0">配布枚数</label>
+      <input class="mi" id="new-apt-qty" type="number" placeholder="例: 50" min="1" style="margin-bottom:0;flex:1">
+    </div>
+    <div style="font-size:12px;font-weight:600;color:#555;margin-bottom:8px">配った人</div>
+    <div id="new-apt-member-sel" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px"></div>
+    <div class="mrow">
+      <button class="mbtn g" onclick="closeAddAptModal()">キャンセル</button>
+      <button class="mbtn p" id="new-apt-ok-btn">✓ 追加する</button>
+    </div>
+  </div>
+</div>
+
 <!-- 集合住宅シート -->
 <div class="mbg" id="apt-sheet" onclick="closeAptSheet()">
   <div onclick="event.stopPropagation()" style="background:#fff;border-radius:22px 22px 0 0;position:absolute;bottom:0;left:0;right:0;max-height:75vh;display:flex;flex-direction:column">
@@ -510,8 +545,15 @@ const APARTMENTS = [
   { id:'apt3', name:'南古谷39-2住宅',     addr:'埼玉県川越市南古谷39-2',   lat:35.904512, lng:139.520019, units:40,  defaultQty:40  },
   { id:'apt4', name:'並木新町18-8住宅',   addr:'埼玉県川越市並木新町18-8', lat:35.900929, lng:139.516758, units:30,  defaultQty:30  },
 ];
-// 集合住宅配布記録: { aptId -> { qty, done, ts } }
+// 集合住宅配布記録: { aptId -> { qty, done, memberId, memberName, ts } }
 let aptRecords = {};
+// 動的に追加された集合住宅: [{id, name, addr, lat, lng, units, defaultQty, dynamic:true}]
+let dynamicApts = [];
+// 追加モード
+let addAptMode = false;
+let pendingAptLatlng = null;
+let newAptSelectedMemberId = '';
+let newAptSelectedMemberName = '';
 
 // ============================================================
 // State
@@ -1013,6 +1055,7 @@ function joinStaff(idx) {
   setTimeout(layoutStaff, 50);
   drawZones(sess);
   loadAptRecords();
+  loadDynamicApts();
   renderRbar(sess);
   updateBadge(sess);
   startGPS();
@@ -1055,7 +1098,15 @@ function initStaffMap() {
   smap = L.map('s-map', { zoomControl: true, attributionControl: false, tapTolerance: 15 });
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 20, minZoom: 10 }).addTo(smap);
   smap.on('zoomend', updateBizVis);
-  smap.on('click', e => { if (!isTouching) addStaffMarker(myIdx, e.latlng); });
+  smap.on('click', e => {
+    if (isTouching) return;
+    if (addAptMode) {
+      // 集合住宅追加モードはタップ位置をモーダルに渡す
+      openAddAptModal(e.latlng);
+      return;
+    }
+    addStaffMarker(myIdx, e.latlng);
+  });
   const md = document.getElementById('s-map');
   md.addEventListener('touchstart', e => { if (e.touches.length >= 2) isTouching = true; }, { passive: true });
   md.addEventListener('touchend', e => { if (e.touches.length === 0) setTimeout(() => isTouching = false, 300); }, { passive: true });
@@ -1104,29 +1155,32 @@ function drawApartments() {
       autoPanPadding: [20, 20],
       keepInView: true
     });
-    marker.on('popupopen', () => {
+    marker.on('popupopen', () => buildAptPopup(popup, apt, marker));
+    marker.bindPopup(popup);
+  });
+}
+
+// ── ポップアップ内容生成（固定・動的集合住宅共通） ─────────────
+function buildAptPopup(popup, apt, marker) {
       const rec = aptRecords[apt.id];
       const isDone = rec && rec.done;
 
       const div = document.createElement('div');
       div.style.cssText = 'padding:14px 16px;';
 
-      // タイトル
       const title = document.createElement('div');
       title.style.cssText = 'font-size:14px;font-weight:700;margin-bottom:3px;color:#111';
-      title.textContent = '🏢 ' + apt.name;
+      title.textContent = '🏢 ' + apt.name + (apt.dynamic ? ' ✏️' : '');
       div.appendChild(title);
 
-      // 住所
       const addr = document.createElement('div');
       addr.style.cssText = 'font-size:11px;color:#888;margin-bottom:12px';
-      addr.textContent = apt.addr + '（目安 ' + apt.units + '戸）';
-
-
+      addr.textContent = apt.dynamic
+        ? `追加済み集合住宅（目安 ${apt.units||'?'}戸）`
+        : `${apt.addr}（目安 ${apt.units}戸）`;
       div.appendChild(addr);
 
       if (isDone) {
-        // ── 完了済み表示 ──
         const doneBox = document.createElement('div');
         doneBox.style.cssText = 'background:#f0fdf4;border:1.5px solid #22c55e;border-radius:10px;padding:10px 12px;margin-bottom:10px;text-align:center';
         const memberName = rec.memberName || '';
@@ -1135,7 +1189,6 @@ function drawApartments() {
           <div style="font-size:11px;color:#16a34a;margin-top:2px">✓ 配布完了${memberName ? ' (' + memberName + ')' : ''}</div>`;
         div.appendChild(doneBox);
 
-        // 修正ボタン
         const editBtn = document.createElement('button');
         editBtn.style.cssText = 'width:100%;padding:9px;border-radius:10px;border:1.5px solid #ddd;background:#fff;color:#555;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:7px;font-family:inherit';
         editBtn.textContent = '✏️ 枚数を修正する';
@@ -1149,8 +1202,20 @@ function drawApartments() {
         });
         div.appendChild(editBtn);
 
+        // 動的Aptは削除ボタンも表示
+        if (apt.dynamic) {
+          const delBtn = document.createElement('button');
+          delBtn.style.cssText = 'width:100%;padding:9px;border-radius:10px;border:none;background:#fff1f0;color:#dc2626;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:7px;font-family:inherit';
+          delBtn.textContent = '🗑 この集合住宅を削除';
+          delBtn.addEventListener('click', () => {
+            removeDynamicApt(apt.id);
+            marker.closePopup();
+            smap.removeLayer(marker);
+          });
+          div.appendChild(delBtn);
+        }
+
       } else {
-        // ── 未完了: 枚数入力 ──
         // 担当者セレクター
         const memberLabel = document.createElement('div');
         memberLabel.style.cssText = 'font-size:12px;font-weight:600;color:#555;margin-bottom:6px';
@@ -1166,7 +1231,8 @@ function drawApartments() {
           const btn = document.createElement('button');
           btn.dataset.mid = m.id;
           btn.dataset.mname = m.name;
-          btn.style.cssText = `padding:6px 14px;border-radius:99px;border:2px solid ${m.color};font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .12s;background:${m.id===selectedMemberId?m.color:'#fff'};color:${m.id===selectedMemberId?'#fff':m.color}`;
+          const isSel = m.id === selectedMemberId;
+          btn.style.cssText = `padding:6px 14px;border-radius:99px;border:2px solid ${m.color};font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:${isSel?m.color:'#fff'};color:${isSel?'#fff':m.color}`;
           btn.textContent = TI[m.transport] + ' ' + m.name;
           btn.addEventListener('click', () => {
             selectedMemberId = m.id;
@@ -1187,35 +1253,25 @@ function drawApartments() {
         label.textContent = '配布枚数';
         div.appendChild(label);
 
-        // 枚数入力欄
         const inputWrap = document.createElement('div');
         inputWrap.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:10px';
-
         const input = document.createElement('input');
-        input.type = 'number';
-        input.min = '1';
-        input.value = apt.defaultQty;
+        input.type = 'number'; input.min = '1';
+        input.value = apt.defaultQty || apt.units || 10;
         input.style.cssText = 'flex:1;padding:10px 12px;border-radius:10px;border:1.5px solid #ddd;font-size:20px;font-weight:700;text-align:center;font-family:inherit;outline:none;color:#111';
         input.addEventListener('focus', () => { input.style.borderColor = '#0071e3'; });
         input.addEventListener('blur',  () => { input.style.borderColor = '#ddd'; });
-
-        // ±ボタン
         const minus = document.createElement('button');
         minus.textContent = '－';
         minus.style.cssText = 'width:36px;height:36px;border-radius:50%;border:1.5px solid #ddd;background:#fff;font-size:18px;cursor:pointer;flex-shrink:0;font-family:inherit';
-        minus.addEventListener('click', () => { const v = parseInt(input.value)||0; if(v>1) input.value = v-1; });
-
+        minus.addEventListener('click', () => { const v=parseInt(input.value)||0; if(v>1) input.value=v-1; });
         const plus = document.createElement('button');
         plus.textContent = '＋';
         plus.style.cssText = 'width:36px;height:36px;border-radius:50%;border:1.5px solid #ddd;background:#fff;font-size:18px;cursor:pointer;flex-shrink:0;font-family:inherit';
-        plus.addEventListener('click', () => { input.value = (parseInt(input.value)||0) + 1; });
-
-        inputWrap.appendChild(minus);
-        inputWrap.appendChild(input);
-        inputWrap.appendChild(plus);
+        plus.addEventListener('click', () => { input.value=(parseInt(input.value)||0)+1; });
+        inputWrap.appendChild(minus); inputWrap.appendChild(input); inputWrap.appendChild(plus);
         div.appendChild(inputWrap);
 
-        // 完了ボタン
         const doneBtn = document.createElement('button');
         doneBtn.style.cssText = 'width:100%;padding:11px;border-radius:10px;border:none;background:#22c55e;color:#fff;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px;font-family:inherit';
         doneBtn.textContent = '✓ 配布完了';
@@ -1227,9 +1283,8 @@ function drawApartments() {
           saveAptToSupabase(apt, qty, selectedMemberId, selectedMemberName);
           refreshAptIcon(apt);
           marker.closePopup();
-          updateAptBadge();
-          // 残件バーと進捗バッジも更新
           updateAll();
+          updateAptBadge();
         });
         div.appendChild(doneBtn);
       }
@@ -1242,11 +1297,7 @@ function drawApartments() {
         window.open(`https://www.google.com/maps/dir/?api=1&destination=${apt.lat},${apt.lng}&travelmode=driving`, '_blank');
       });
       div.appendChild(navBtn);
-
       popup.setContent(div);
-    });
-    marker.bindPopup(popup);
-  });
 }
 
 // 集合住宅配布をSupabaseに保存
@@ -1468,6 +1519,7 @@ async function loadStaffMarkers(sess) {
     updateAll();
     // 集合住宅データも同期
     loadAptRecords();
+    loadDynamicApts();
   } catch(e) { setSyncDot('err'); }
 }
 
@@ -1512,7 +1564,7 @@ function updateAll() {
 
 // 全集合住宅の配布済み合計枚数
 function aptDoneTotal() {
-  return APARTMENTS.reduce((s, a) => s + (aptRecords[a.id]?.done ? (aptRecords[a.id]?.qty || 0) : 0), 0);
+  return [...APARTMENTS, ...dynamicApts].reduce((s, a) => s + (aptRecords[a.id]?.done ? (aptRecords[a.id]?.qty || 0) : 0), 0);
 }
 
 // メンバーインデックスに対応する集合住宅の配布済み枚数
@@ -1520,7 +1572,7 @@ function aptDoneForMember(memberIdx) {
   const sess = sessions[0];
   if (!sess) return 0;
   const memberId = sess.members[memberIdx]?.id || '';
-  return APARTMENTS
+  return [...APARTMENTS, ...dynamicApts]
     .reduce((s, a) => {
       const rec = aptRecords[a.id];
       // このメンバーが配った分だけ合計
@@ -1697,11 +1749,180 @@ function closeStat(){document.getElementById('stat-modal').classList.remove('on'
 // ============================================================
 // CSV
 // ============================================================
+// ── 集合住宅追加モード ────────────────────────────────────
+function toggleAddAptMode() {
+  addAptMode = !addAptMode;
+  const btn = document.getElementById('add-apt-btn');
+  const hint = document.getElementById('add-apt-hint');
+  const normalHint = document.getElementById('s-hint');
+  if (addAptMode) {
+    btn.style.color = '#ff9500';
+    btn.querySelectorAll('svg').forEach(s => s.style.color = '#ff9500');
+    hint.style.display = 'block';
+    normalHint.style.display = 'none';
+    smap.getContainer().style.cursor = 'crosshair';
+  } else {
+    btn.style.color = '';
+    btn.querySelectorAll('svg').forEach(s => s.style.color = '');
+    hint.style.display = 'none';
+    normalHint.style.display = 'block';
+    smap.getContainer().style.cursor = '';
+  }
+}
+
+function openAddAptModal(latlng) {
+  pendingAptLatlng = latlng;
+  // メンバーボタンを生成
+  const sess = sessions[0];
+  newAptSelectedMemberId = sess?.members[myIdx]?.id || '';
+  newAptSelectedMemberName = sess?.members[myIdx]?.name || '';
+  const sel = document.getElementById('new-apt-member-sel');
+  sel.innerHTML = '';
+  (sess?.members || []).forEach(m => {
+    const btn = document.createElement('button');
+    btn.dataset.mid = m.id;
+    btn.dataset.mname = m.name;
+    const isSelected = m.id === newAptSelectedMemberId;
+    btn.style.cssText = `padding:6px 14px;border-radius:99px;border:2px solid ${m.color};font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:${isSelected?m.color:'#fff'};color:${isSelected?'#fff':m.color}`;
+    btn.textContent = TI[m.transport] + ' ' + m.name;
+    btn.addEventListener('click', () => {
+      newAptSelectedMemberId = m.id;
+      newAptSelectedMemberName = m.name;
+      sel.querySelectorAll('button').forEach(b => {
+        const bm = sess.members.find(x => x.id === b.dataset.mid);
+        if (!bm) return;
+        b.style.background = b.dataset.mid === newAptSelectedMemberId ? bm.color : '#fff';
+        b.style.color = b.dataset.mid === newAptSelectedMemberId ? '#fff' : bm.color;
+      });
+    });
+    sel.appendChild(btn);
+  });
+  document.getElementById('new-apt-name').value = '';
+  document.getElementById('new-apt-units').value = '';
+  document.getElementById('new-apt-qty').value = '';
+  document.getElementById('add-apt-modal').classList.add('on');
+
+  // OKボタン
+  const okBtn = document.getElementById('new-apt-ok-btn');
+  const newOk = okBtn.cloneNode(true);
+  okBtn.parentNode.replaceChild(newOk, okBtn);
+  newOk.addEventListener('click', confirmAddApt);
+}
+
+function closeAddAptModal() {
+  document.getElementById('add-apt-modal').classList.remove('on');
+  pendingAptLatlng = null;
+}
+
+async function confirmAddApt() {
+  const name = document.getElementById('new-apt-name').value.trim();
+  if (!name) { document.getElementById('new-apt-name').style.borderColor='#ff3b30'; return; }
+  const units = parseInt(document.getElementById('new-apt-units').value) || 0;
+  const qty   = parseInt(document.getElementById('new-apt-qty').value) || 0;
+  if (!qty) { document.getElementById('new-apt-qty').style.borderColor='#ff3b30'; return; }
+
+  const apt = {
+    id: 'dyn_' + Date.now(),
+    name, units, defaultQty: qty,
+    addr: `${pendingAptLatlng.lat.toFixed(5)}, ${pendingAptLatlng.lng.toFixed(5)}`,
+    lat: pendingAptLatlng.lat,
+    lng: pendingAptLatlng.lng,
+    dynamic: true
+  };
+
+  // 配布記録を即時セット
+  aptRecords[apt.id] = {
+    qty, done: true,
+    memberId: newAptSelectedMemberId,
+    memberName: newAptSelectedMemberName,
+    ts: Date.now()
+  };
+
+  dynamicApts.push(apt);
+  saveDynamicApts();
+  saveAptRecords();
+
+  // Supabaseに保存
+  await saveAptToSupabase(apt, qty, newAptSelectedMemberId, newAptSelectedMemberName);
+  await saveDynamicAptToSupabase(apt);
+
+  // 地図にピン追加
+  addDynamicAptMarker(apt);
+
+  closeAddAptModal();
+  toggleAddAptMode();
+  updateAll();
+  updateAptBadge();
+}
+
+async function saveDynamicAptToSupabase(apt) {
+  const sess = sessions[0]; if (!sess) return;
+  await api('dynamic_apts', {
+    method: 'POST',
+    headers: { 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+    body: JSON.stringify({ apt_id: apt.id, session_id: sess.id, name: apt.name, lat: apt.lat, lng: apt.lng, units: apt.units, default_qty: apt.defaultQty })
+  }).catch(() => {});
+}
+
+function addDynamicAptMarker(apt) {
+  const icon = L.divIcon({
+    html: aptIconHtml(apt),
+    iconSize: [140, 36], iconAnchor: [70, 36], popupAnchor: [-60, -36], className: ''
+  });
+  const marker = L.marker([apt.lat, apt.lng], { icon, zIndexOffset: 600 }).addTo(smap);
+  aptMarkers[apt.id] = marker;
+
+  const popup = L.popup({ maxWidth: 240, minWidth: 220, autoPan: true, autoPanPadding: [20, 20], keepInView: true });
+  marker.on('popupopen', () => buildAptPopup(popup, apt, marker));
+  marker.bindPopup(popup);
+}
+
+function saveDynamicApts() {
+  try { localStorage.setItem('dynamic_apts_v1', JSON.stringify(dynamicApts)); } catch(e) {}
+}
+
+function removeDynamicApt(aptId) {
+  const idx = dynamicApts.findIndex(a => a.id === aptId);
+  if (idx !== -1) dynamicApts.splice(idx, 1);
+  delete aptRecords[aptId];
+  if (aptMarkers[aptId]) { delete aptMarkers[aptId]; }
+  saveDynamicApts();
+  saveAptRecords();
+  updateAll();
+  updateAptBadge();
+  // Supabaseからも削除
+  const sess = sessions[0]; if (!sess) return;
+  api(`dynamic_apts?apt_id=eq.${aptId}&session_id=eq.${sess.id}`, { method:'DELETE' }).catch(()=>{});
+  api(`apt_records?apt_id=eq.${aptId}&session_id=eq.${sess.id}`, { method:'DELETE' }).catch(()=>{});
+}
+
+function loadDynamicApts() {
+  try {
+    const raw = localStorage.getItem('dynamic_apts_v1');
+    if (raw) dynamicApts = JSON.parse(raw);
+  } catch(e) {}
+  // Supabaseからも取得
+  const sess = sessions[0]; if (!sess) return;
+  api(`dynamic_apts?session_id=eq.${sess.id}&select=*`, { method:'GET', json:true, prefer:'' })
+    .then(data => {
+      if (!Array.isArray(data)) return;
+      data.forEach(d => {
+        if (dynamicApts.find(a => a.id === d.apt_id)) return; // 重複スキップ
+        const apt = { id: d.apt_id, name: d.name, lat: d.lat, lng: d.lng, units: d.units, defaultQty: d.default_qty, addr: `${d.lat.toFixed(5)}, ${d.lng.toFixed(5)}`, dynamic: true };
+        dynamicApts.push(apt);
+        addDynamicAptMarker(apt);
+      });
+      saveDynamicApts();
+    }).catch(() => {});
+}
+
 // ── 集合住宅シート ──────────────────────────────────────
 function showAptSheet() {
   const inner = document.getElementById('apt-list-inner');
   inner.innerHTML = '';
-  APARTMENTS.forEach(apt => {
+  // 固定＋動的の集合住宅を結合して表示
+  const allApts = [...APARTMENTS, ...dynamicApts];
+  allApts.forEach(apt => {
     const item = document.createElement('div');
     item.style.cssText = 'display:flex;align-items:center;gap:12px;padding:13px 4px;border-bottom:0.5px solid rgba(0,0,0,.08);cursor:pointer';
 
