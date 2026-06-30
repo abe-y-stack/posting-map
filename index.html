@@ -650,25 +650,68 @@ async function fetchSessions() {
 }
 
 async function upsertSession(sess) {
-  // POST + resolution=merge-duplicates でupsert（1回のリクエストで完結）
-  const r = await fetch(`${SB}/rest/v1/posting_sessions`, {
-    method: 'POST',
-    headers: {
-      'apikey': KEY,
-      'Content-Type': 'application/json',
-      'Prefer': 'resolution=merge-duplicates,return=minimal'
-    },
-    body: JSON.stringify({
-      session_key: sess.id,
-      config: JSON.stringify(sess),
-      title: sess.title || '無題'
-    })
+  const body = {
+    session_key: sess.id,
+    config: JSON.stringify(sess),
+    title: sess.title || '無題'
+  };
+
+  // まず既存レコードがあるか確認
+  const checkR = await fetch(`${SB}/rest/v1/posting_sessions?session_key=eq.${encodeURIComponent(sess.id)}&select=session_key`, {
+    headers: { 'apikey': KEY, 'Content-Type': 'application/json' }
   });
-  if (!r.ok) {
-    const t = await r.text().catch(() => r.status + '');
-    throw new Error(`保存エラー(${r.status}): ${t}`);
+  const existing = checkR.ok ? await checkR.json() : [];
+
+  if (Array.isArray(existing) && existing.length > 0) {
+    // 既存あり → PATCHで更新
+    const r = await fetch(`${SB}/rest/v1/posting_sessions?session_key=eq.${encodeURIComponent(sess.id)}`, {
+      method: 'PATCH',
+      headers: {
+        'apikey': KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify(body)
+    });
+    if (!r.ok) {
+      const t = await r.text().catch(() => r.status + '');
+      throw new Error(`更新エラー(${r.status}): ${t}`);
+    }
+    return r;
+  } else {
+    // 既存なし → POSTで新規作成
+    const r = await fetch(`${SB}/rest/v1/posting_sessions`, {
+      method: 'POST',
+      headers: {
+        'apikey': KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify(body)
+    });
+    if (!r.ok) {
+      // 409（重複）が出た場合は念のためPATCHにフォールバック
+      if (r.status === 409) {
+        const r2 = await fetch(`${SB}/rest/v1/posting_sessions?session_key=eq.${encodeURIComponent(sess.id)}`, {
+          method: 'PATCH',
+          headers: {
+            'apikey': KEY,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal'
+          },
+          body: JSON.stringify(body)
+        });
+        if (!r2.ok) {
+          const t2 = await r2.text().catch(() => r2.status + '');
+          throw new Error(`更新エラー(${r2.status}): ${t2}`);
+        }
+        return r2;
+      }
+      const t = await r.text().catch(() => r.status + '');
+      throw new Error(`保存エラー(${r.status}): ${t}`);
+    }
+    return r;
   }
-  return r;
 }
 
 async function deleteSession(sessId) {
