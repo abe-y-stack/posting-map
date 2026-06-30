@@ -332,6 +332,10 @@ html,body{height:100%;width:100%;overflow:hidden;font-family:'Noto Sans JP',sans
         <button class="mtool" id="tool-rect" onclick="activateDraw('rect')">⬜ 四角形を描く</button>
         <button class="mtool" id="tool-poly" onclick="activateDraw('poly')">🔷 多角形を描く</button>
         <button class="mtool" id="tool-clear" onclick="clearSelectedArea()">🗑 選択エリア削除</button>
+        <button class="mtool active" id="tool-past" onclick="togglePastAreas()">🗺 過去配布エリア表示中</button>
+      </div>
+      <div style="position:absolute;left:10px;top:60px;z-index:999;background:rgba(255,255,255,.92);border-radius:8px;padding:6px 10px;font-size:10px;color:#666;box-shadow:0 1px 6px rgba(0,0,0,.1)">
+        <span style="display:inline-block;width:14px;height:8px;background:#999;opacity:.5;border:1px dashed #888;vertical-align:middle;margin-right:5px"></span>過去配布エリア（重複注意）
       </div>
       <div id="member-select-bar">
         <h4>担当メンバーを選んでからエリアを描いてください</h4>
@@ -570,6 +574,8 @@ let amap = null;
 let drawHandler = null;
 let selectedMemberId = null;
 let zoneLayerGroup = null;
+let pastAreaLayerGroup = null;
+let showPastAreas = true;
 
 // staff
 let smap = null;
@@ -644,45 +650,25 @@ async function fetchSessions() {
 }
 
 async function upsertSession(sess) {
-  const payload = {
-    session_key: sess.id,
-    config: JSON.stringify(sess),
-    title: sess.title || '無題',
-    updated_at: new Date().toISOString()
-  };
-  // session_keyで既存を検索して更新、なければ挿入
-  const existing = await api(`posting_sessions?session_key=eq.${sess.id}&select=id`, { json: true, prefer: '' });
-  if (Array.isArray(existing) && existing.length > 0) {
-    const r = await fetch(`${SB}/rest/v1/posting_sessions?session_key=eq.${sess.id}`, {
-      method: 'PATCH',
-      headers: {
-        'apikey': KEY,
-        'Content-Type': 'application/json',
-        'Prefer': 'return=minimal'
-      },
-      body: JSON.stringify({ config: JSON.stringify(sess), title: sess.title||'無題', updated_at: new Date().toISOString() })
-    });
-    if (!r.ok) {
-      const t = await r.text();
-      throw new Error(`PATCH失敗 ${r.status}: ${t}`);
-    }
-    return r;
-  } else {
-    const r = await fetch(`${SB}/rest/v1/posting_sessions`, {
-      method: 'POST',
-      headers: {
-        'apikey': KEY,
-        'Content-Type': 'application/json',
-        'Prefer': 'return=minimal'
-      },
-      body: JSON.stringify(payload)
-    });
-    if (!r.ok) {
-      const t = await r.text();
-      throw new Error(`POST失敗 ${r.status}: ${t}`);
-    }
-    return r;
+  // POST + resolution=merge-duplicates でupsert（1回のリクエストで完結）
+  const r = await fetch(`${SB}/rest/v1/posting_sessions`, {
+    method: 'POST',
+    headers: {
+      'apikey': KEY,
+      'Content-Type': 'application/json',
+      'Prefer': 'resolution=merge-duplicates,return=minimal'
+    },
+    body: JSON.stringify({
+      session_key: sess.id,
+      config: JSON.stringify(sess),
+      title: sess.title || '無題'
+    })
+  });
+  if (!r.ok) {
+    const t = await r.text().catch(() => r.status + '');
+    throw new Error(`保存エラー(${r.status}): ${t}`);
   }
+  return r;
 }
 
 async function deleteSession(sessId) {
@@ -705,6 +691,11 @@ function newSession() {
   document.getElementById('admin-title').textContent = '新規セッション';
   renderMemberList();
   aTab('info');
+  // マップの編集中エリアをクリア＋過去エリアを全件表示
+  if (amap && zoneLayerGroup) {
+    zoneLayerGroup.clearLayers();
+    drawPastAreas();
+  }
 }
 
 // ============================================================
@@ -724,6 +715,7 @@ function loadSession(sess) {
   if (amap) {
     zoneLayerGroup.clearLayers();
     editMembers.forEach(m => { if (m.area) drawMemberZone(m); });
+    drawPastAreas(); // 編集中セッションを除外して再描画
   }
 }
 
@@ -764,7 +756,7 @@ async function saveSession() {
   } catch(e) {
     loading(false);
     console.error('保存エラー:', e);
-    alert('保存に失敗しました。\nエラー: ' + e.message);
+    alert('保存に失敗しました。\n\n' + e.message + '\n\nSupabaseの接続・テーブル設定を確認してください。');
   }
 }
 
@@ -779,7 +771,10 @@ function aTab(name) {
   mp.classList.toggle('on', name==='map');
   if (name === 'map') {
     if (!amap) initAdminMap();
-    else setTimeout(() => amap.invalidateSize(), 100);
+    else {
+      setTimeout(() => amap.invalidateSize(), 100);
+      drawPastAreas(); // タブ切替時にも最新セッション一覧を反映
+    }
     renderMemberBtns();
   }
   if (name === 'sessions') renderSessList();
@@ -792,10 +787,61 @@ function initAdminMap() {
   amap = L.map('admin-map', { zoomControl: true, attributionControl: false });
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 20 }).addTo(amap);
   amap.setView([35.910, 139.490], 13);
+
+  // 過去配布エリア（最背面・グレー斜線）
+  pastAreaLayerGroup = L.layerGroup().addTo(amap);
+  drawPastAreas();
+
+  // 現在編集中のエリア（前面）
   zoneLayerGroup = L.layerGroup().addTo(amap);
-  // 既存エリアを描画
   editMembers.forEach(m => { if (m.area) drawMemberZone(m); });
   renderMemberBtns();
+}
+
+// ── 過去配布エリアの描画 ──────────────────────────────────
+function drawPastAreas() {
+  if (!pastAreaLayerGroup) return;
+  pastAreaLayerGroup.clearLayers();
+  if (!showPastAreas) return;
+
+  // 現在編集中のセッション以外の、全保存済みセッションのエリアを集める
+  sessions.forEach(s => {
+    if (cur && s.id === cur.id) return; // 編集中の自分自身は除く
+    (s.members || []).forEach(m => {
+      if (!m.area) return;
+      const poly = L.polygon(m.area, {
+        color: '#999999',
+        fillColor: '#999999',
+        fillOpacity: 0.18,
+        weight: 1.5,
+        dashArray: '3 4',
+        interactive: true
+      });
+      // ラベル: セッション名・日付・担当者
+      const lats = m.area.map(c => c[0]), lngs = m.area.map(c => c[1]);
+      const clat = (Math.min(...lats) + Math.max(...lats)) / 2;
+      const clng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
+      const labelIcon = L.divIcon({
+        html: `<div style="background:rgba(120,120,120,.85);color:#fff;border-radius:6px;padding:2px 8px;font-size:10px;font-weight:700;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.15)">
+          🕓 配布済 ${s.date||''} ${TI[m.transport]||''}${m.name||''}
+        </div>`,
+        iconSize: [160, 22], iconAnchor: [80, 11], className: ''
+      });
+      poly.bindTooltip(`配布済み: ${s.title||'無題'}（${s.date||'日付不明'}）<br>担当: ${m.name}`, {
+        sticky: true, direction: 'top'
+      });
+      pastAreaLayerGroup.addLayer(poly);
+      pastAreaLayerGroup.addLayer(L.marker([clat, clng], { icon: labelIcon, interactive: false }));
+    });
+  });
+}
+
+function togglePastAreas() {
+  showPastAreas = !showPastAreas;
+  const btn = document.getElementById('tool-past');
+  btn.classList.toggle('active', showPastAreas);
+  btn.textContent = showPastAreas ? '🗺 過去配布エリア表示中' : '🗺 過去配布エリア非表示';
+  drawPastAreas();
 }
 
 function activateDraw(type) {
