@@ -381,6 +381,10 @@ html,body{height:100%;width:100%;overflow:hidden;font-family:'Noto Sans JP',sans
 </div>
   <div id="s-leg">
     <div class="lr"><div class="ld" style="background:#22c55e"></div>配布済み</div>
+    <div class="lr" id="past-leg-toggle" onclick="toggleStaffPastZones()" style="cursor:pointer;padding:1px 0">
+      <div class="ld" id="past-leg-dot" style="background:#555;opacity:.7;border:1px dashed #333"></div>
+      <span id="past-leg-label">前回配布エリア</span> <span style="font-size:9px;color:#aaa">タップで切替</span>
+    </div>
     <div class="lr"><span style="font-size:11px">🏢</span>集合住宅</div>
     <div class="lr"><span style="font-size:11px">🏭</span>会社(拡大時)</div>
   </div>
@@ -582,6 +586,7 @@ let smap = null;
 let myIdx = -1;
 let sMarkers = [];
 let sZones = [];
+let sPastZones = []; // 過去配布エリアレイヤー
 let sBizLayers = [], sBizFetched = {};
 let gpsM = null, gpsC = null, gpsH = null;
 let otherGps = {};
@@ -1172,7 +1177,8 @@ function joinStaff(idx) {
 
   layoutStaff();
   setTimeout(layoutStaff, 50);
-  drawZones(sess);
+  drawPastZones(sess); // 過去配布エリアを最背面に描画
+  drawZones(sess);     // 現在のエリアを前面に描画
   loadAptRecords();
   loadDynamicApts();
   // 地図のズームレベルが一定以上になったらOSM集合住宅を取得
@@ -1284,6 +1290,68 @@ function drawApartments() {
     });
     marker.on('popupopen', () => buildAptPopup(popup, apt, marker));
     marker.bindPopup(popup);
+  });
+}
+
+// ── スタッフ画面：過去配布エリア描画 ─────────────────────────
+let staffPastVisible = true;
+
+function toggleStaffPastZones() {
+  staffPastVisible = !staffPastVisible;
+  sPastZones.forEach(l => {
+    try {
+      if (staffPastVisible) l.addTo(smap);
+      else smap.removeLayer(l);
+    } catch(e) {}
+  });
+  const dot = document.getElementById('past-leg-dot');
+  const lbl = document.getElementById('past-leg-label');
+  if (dot) dot.style.opacity = staffPastVisible ? '.7' : '.2';
+  if (lbl) lbl.style.color  = staffPastVisible ? '' : '#bbb';
+}
+
+function drawPastZones(currentSess) {
+  // 既存の過去エリアを削除
+  sPastZones.forEach(l => { try { smap.removeLayer(l); } catch(e) {} });
+  sPastZones = [];
+
+  // 現在のセッション以外の全セッションのエリアを表示
+  sessions.forEach(s => {
+    if (s.id === currentSess.id) return; // 今のセッションは除く
+    (s.members || []).forEach(m => {
+      if (!m.area) return;
+      const poly = L.polygon(m.area, {
+        color: '#444444',
+        fillColor: '#555555',
+        fillOpacity: 0.40,
+        weight: 2.5,
+        dashArray: '8 4',
+        interactive: true,
+        zIndexOffset: -1000 // 現在エリアより背面に
+      }).addTo(smap);
+
+      // ラベル（中央に日付・担当者）
+      const lats = m.area.map(c => c[0]), lngs = m.area.map(c => c[1]);
+      const clat = (Math.min(...lats) + Math.max(...lats)) / 2;
+      const clng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
+      const lIcon = L.divIcon({
+        html: `<div style="background:#333;color:#fff;border-radius:7px;padding:4px 10px;font-size:11px;font-weight:700;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.3);border:1.5px solid #fff;pointer-events:none">
+          🚫 配布済 ${s.date||''} ${TI[m.transport]||''}${m.name||''}
+        </div>`,
+        iconSize: [180, 26], iconAnchor: [90, 13], className: ''
+      });
+      const lm = L.marker([clat, clng], { icon: lIcon, interactive: false, zIndexOffset: -900 }).addTo(smap);
+
+      // タップでセッション情報を表示
+      poly.bindPopup(`<div style="padding:10px 13px;min-width:160px">
+        <div style="font-size:13px;font-weight:700;margin-bottom:4px">🚫 配布済みエリア</div>
+        <div style="font-size:12px;color:#555;margin-bottom:3px">📋 ${s.title||'無題'}</div>
+        <div style="font-size:11px;color:#888">📅 ${s.date||'日付不明'}</div>
+        <div style="font-size:11px;color:#888">👤 ${TI[m.transport]||''}${m.name||''}</div>
+      </div>`, { maxWidth: 220 });
+
+      sPastZones.push(poly, lm);
+    });
   });
 }
 
