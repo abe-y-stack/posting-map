@@ -1175,7 +1175,12 @@ function joinStaff(idx) {
   document.getElementById('picker-overlay').style.display = 'none';
   document.getElementById('s-title').textContent = sess.title || 'PostingMap';
 
-  if (!smap) initStaffMap();
+  if (!smap) {
+    initStaffMap();
+  } else if (Object.keys(aptMarkers).length === 0) {
+    // smapは既にあるが集合住宅ピンがまだ描画されていない場合は再描画
+    drawApartments();
+  }
   sMarkers = sess.members.map(() => []);
   history = [];
 
@@ -1278,6 +1283,8 @@ function refreshAptIcon(apt) {
 
 function drawApartments() {
   APARTMENTS.forEach(apt => {
+    // 既に描画済みならスキップ（重複防止）
+    if (aptMarkers[apt.id]) return;
     const icon = L.divIcon({
       html: aptIconHtml(apt),
       iconSize: [140, 36], iconAnchor: [70, 36], popupAnchor: [-60, -36], className: ''
