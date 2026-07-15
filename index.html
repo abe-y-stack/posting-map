@@ -386,7 +386,7 @@ html,body{height:100%;width:100%;overflow:hidden;font-family:'Noto Sans JP',sans
     <div class="lr"><div class="ld" style="background:#22c55e"></div>配布済み</div>
     <div class="lr" id="past-leg-toggle" onclick="toggleStaffPastZones()" style="cursor:pointer;padding:1px 0">
       <div class="ld" id="past-leg-dot" style="background:#555;opacity:.7;border:1px dashed #333"></div>
-      <span id="past-leg-label">前回配布エリア</span> <span style="font-size:9px;color:#aaa">タップで切替</span>
+      <span id="past-leg-label">前回配布エリア/ピン</span> <span style="font-size:9px;color:#aaa">タップで切替</span>
     </div>
     <div class="lr"><span style="font-size:11px">🏢</span>集合住宅</div>
     <div class="lr"><span style="font-size:11px">🏭</span>会社(拡大時)</div>
@@ -590,6 +590,7 @@ let myIdx = -1;
 let sMarkers = [];
 let sZones = [];
 let sPastZones = []; // 過去配布エリアレイヤー
+let sPastMarkers = []; // 過去配布済みピンレイヤー
 let sBizLayers = [], sBizFetched = {};
 let gpsM = null, gpsC = null, gpsH = null;
 let otherGps = {};
@@ -1199,8 +1200,9 @@ function joinStaff(idx) {
 
   layoutStaff();
   setTimeout(layoutStaff, 50);
-  drawPastZones(sess); // 過去配布エリアを最背面に描画
-  drawZones(sess);     // 現在のエリアを前面に描画
+  drawPastZones(sess);   // 過去配布エリアを最背面に描画
+  drawPastMarkers(sess); // 過去の配布済みピンを描画
+  drawZones(sess);       // 現在のエリアを前面に描画
   loadDynamicApts().then(() => loadAptRecords());
   // 地図のズームレベルが一定以上になったらOSM集合住宅を取得
   smap.on('zoomend', () => {
@@ -1325,7 +1327,7 @@ let staffPastVisible = true;
 
 function toggleStaffPastZones() {
   staffPastVisible = !staffPastVisible;
-  sPastZones.forEach(l => {
+  [...sPastZones, ...sPastMarkers].forEach(l => {
     try {
       if (staffPastVisible) l.addTo(smap);
       else smap.removeLayer(l);
@@ -1380,6 +1382,53 @@ function drawPastZones(currentSess) {
       sPastZones.push(poly, lm);
     });
   });
+}
+
+// ── スタッフ画面：過去配布済みピンの描画 ─────────────────────
+async function drawPastMarkers(currentSess) {
+  // 既存の過去ピンを削除
+  sPastMarkers.forEach(l => { try { smap.removeLayer(l); } catch(e) {} });
+  sPastMarkers = [];
+
+  // 現在のセッション以外の全セッションIDを集める
+  const pastSessionIds = sessions.filter(s => s.id !== currentSess.id).map(s => s.id);
+  if (!pastSessionIds.length) return;
+
+  try {
+    // 複数セッションのmarkersを一括取得（in句）
+    const idList = pastSessionIds.map(id => `"${id}"`).join(',');
+    const r = await fetch(`${SB}/rest/v1/markers?session=in.(${idList})&select=*`, {
+      headers: { 'apikey': KEY, 'Content-Type': 'application/json' }
+    });
+    if (!r.ok) {
+      console.error('過去マーカー取得失敗:', r.status);
+      return;
+    }
+    const data = await r.json();
+    if (!Array.isArray(data)) return;
+    console.log(`過去配布ピン取得: ${data.length}件`);
+
+    // セッションID→セッション情報のマップ
+    const sessMap = {};
+    sessions.forEach(s => { sessMap[s.id] = s; });
+
+    data.forEach(d => {
+      const s = sessMap[d.session];
+      const dateStr = s ? (s.date || '') : '';
+      const icon = L.divIcon({
+        html: `<div style="width:14px;height:14px;border-radius:50%;background:#999;border:2px solid #666;opacity:.75;box-shadow:0 1px 3px rgba(0,0,0,.2)"></div>`,
+        iconSize: [14, 14], iconAnchor: [7, 7], className: ''
+      });
+      const m = L.marker([d.lat, d.lng], { icon, zIndexOffset: -800, interactive: true }).addTo(smap);
+      m.bindPopup(`<div style="padding:8px 12px;font-size:12px">
+        <b>🕓 過去の配布済み地点</b><br>
+        📅 ${dateStr || '日付不明'}
+      </div>`, { maxWidth: 180 });
+      sPastMarkers.push(m);
+    });
+  } catch(e) {
+    console.error('過去マーカー取得エラー:', e);
+  }
 }
 
 // ── ポップアップ内容生成（固定・動的集合住宅共通） ─────────────
