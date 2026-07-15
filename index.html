@@ -1203,6 +1203,10 @@ function joinStaff(idx) {
   if (syncTmr) clearInterval(syncTmr);
   syncTmr = setInterval(() => loadStaffMarkers(sess), 5000);
 
+  // PCでタブがバックグラウンドになるとsetIntervalが間引かれるため、
+  // タブが再度アクティブになった瞬間に即座に再同期する
+  setupVisibilitySync(sess);
+
   setTimeout(() => { document.getElementById('s-hint').style.opacity = '0'; }, 3000);
 }
 
@@ -1734,6 +1738,28 @@ function resetMy() {
 // ============================================================
 // Staff: sync
 // ============================================================
+// ── タブ復帰時に即座に再同期（PCブラウザのバックグラウンド間引き対策） ──
+let visibilitySyncBound = false;
+function setupVisibilitySync(sess) {
+  if (visibilitySyncBound) return; // リスナーは1回だけ登録
+  visibilitySyncBound = true;
+
+  const resync = () => {
+    const currentSess = sessions[0];
+    if (currentSess) {
+      console.log('タブ復帰 → 即時再同期');
+      loadStaffMarkers(currentSess);
+    }
+  };
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') resync();
+  });
+  window.addEventListener('focus', resync);
+  // モバイルでもスリープ復帰時に効くようpageshowも追加
+  window.addEventListener('pageshow', resync);
+}
+
 async function loadStaffMarkers(sess) {
   try {
     const r = await fetch(`${SB}/rest/v1/markers?session=eq.${encodeURIComponent(sess.id)}&select=*`, {
@@ -1796,15 +1822,17 @@ function showSyncDebug() {
   const sess = sessions[0];
   const total = sMarkers.reduce((s,a)=>s+a.length,0);
   const timeStr = lastSyncTime ? new Date(lastSyncTime).toLocaleTimeString('ja-JP') : '未同期';
-  alert(
+  const doNow = confirm(
     `📡 同期状態\n\n` +
     `セッションID: ${sess ? sess.id : 'なし'}\n` +
     `最終同期: ${timeStr}\n` +
     `取得済みマーカー数: ${total}件\n\n` +
-    `もし他の人の配布状況が反映されない場合:\n` +
-    `・画面を下に引っ張って再読み込みしてください\n` +
-    `・それでも直らない場合はブラウザを一度完全に閉じて開き直してください`
+    `「OK」を押すと今すぐ再同期します。`
   );
+  if (doNow && sess) {
+    setSyncDot(''); // 同期中は一旦グレーに
+    loadStaffMarkers(sess);
+  }
 }
 
 function makeOtherGpsIcon(m) {
