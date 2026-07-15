@@ -2398,6 +2398,12 @@ async function loadDynamicApts() {
     const raw = localStorage.getItem('dynamic_apts_v1');
     if (raw) dynamicApts = JSON.parse(raw);
   } catch(e) {}
+
+  // localStorageから復元した集合住宅も、まだ地図にピンが無ければ描画する
+  dynamicApts.forEach(apt => {
+    if (smap && !aptMarkers[apt.id]) addDynamicAptMarker(apt);
+  });
+
   const sess = getActiveSession(); if (!sess) return;
   try {
     const r = await fetch(`${SB}/rest/v1/dynamic_apts?session_id=eq.${encodeURIComponent(sess.id)}&select=*`, {
@@ -2411,10 +2417,14 @@ async function loadDynamicApts() {
     if (!Array.isArray(data)) return;
     console.log(`dynamic_apts取得: ${data.length}件`);
     data.forEach(d => {
-      if (dynamicApts.find(a => a.id === d.apt_id)) return;
-      const apt = { id: d.apt_id, name: d.name, lat: d.lat, lng: d.lng, units: d.units, defaultQty: d.default_qty, addr: `${d.lat.toFixed(5)}, ${d.lng.toFixed(5)}`, dynamic: true };
-      dynamicApts.push(apt);
-      addDynamicAptMarker(apt);
+      // 配列に無ければ追加
+      let apt = dynamicApts.find(a => a.id === d.apt_id);
+      if (!apt) {
+        apt = { id: d.apt_id, name: d.name, lat: d.lat, lng: d.lng, units: d.units, defaultQty: d.default_qty, addr: `${d.lat.toFixed(5)}, ${d.lng.toFixed(5)}`, dynamic: true };
+        dynamicApts.push(apt);
+      }
+      // 配列にあっても、地図にピンが無ければ必ず描画する（← リロード後にピンが消えるバグの修正）
+      if (smap && !aptMarkers[apt.id]) addDynamicAptMarker(apt);
     });
     saveDynamicApts();
   } catch(e) {
