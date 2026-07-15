@@ -1188,8 +1188,7 @@ function joinStaff(idx) {
   setTimeout(layoutStaff, 50);
   drawPastZones(sess); // 過去配布エリアを最背面に描画
   drawZones(sess);     // 現在のエリアを前面に描画
-  loadAptRecords();
-  loadDynamicApts();
+  loadDynamicApts().then(() => loadAptRecords());
   // 地図のズームレベルが一定以上になったらOSM集合住宅を取得
   smap.on('zoomend', () => {
     if (smap.getZoom() >= 14) fetchOsmApartments();
@@ -1485,12 +1484,25 @@ function buildAptPopup(popup, apt, marker) {
         const doneBtn = document.createElement('button');
         doneBtn.style.cssText = 'width:100%;padding:11px;border-radius:10px;border:none;background:#22c55e;color:#fff;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px;font-family:inherit';
         doneBtn.textContent = '✓ 配布完了';
-        doneBtn.addEventListener('click', () => {
+        doneBtn.addEventListener('click', async () => {
           const qty = parseInt(input.value);
           if (!qty || qty < 1) { input.style.borderColor='#ff3b30'; return; }
+
+          doneBtn.textContent = '保存中...';
+          doneBtn.disabled = true;
+
+          const ok = await saveAptToSupabase(apt, qty, selectedMemberId, selectedMemberName);
+
+          if (!ok) {
+            doneBtn.textContent = '✓ 配布完了';
+            doneBtn.disabled = false;
+            alert('保存に失敗しました。通信環境を確認してもう一度お試しください。');
+            return;
+          }
+
+          // 保存成功後にローカル状態・UIを更新
           aptRecords[apt.id] = { qty, done: true, memberId: selectedMemberId, memberName: selectedMemberName, ts: Date.now() };
           saveAptRecords();
-          saveAptToSupabase(apt, qty, selectedMemberId, selectedMemberName);
           refreshAptIcon(apt);
           marker.closePopup();
           updateAll();
@@ -1512,7 +1524,8 @@ function buildAptPopup(popup, apt, marker) {
 
 // 集合住宅配布をSupabaseに保存
 async function saveAptToSupabase(apt, qty, memberId, memberName) {
-  const sess = sessions[0]; if (!sess) return;
+  const sess = sessions[0];
+  if (!sess) { console.error('セッションが見つかりません'); return false; }
   const body = {
     session_id: sess.id, apt_id: apt.id, apt_name: apt.name,
     qty, done: true, member_id: memberId, member_name: memberName
@@ -1541,12 +1554,14 @@ async function saveAptToSupabase(apt, qty, memberId, memberName) {
       const t = await r.text().catch(()=>'');
       console.error('集合住宅保存失敗:', r.status, t);
       setSyncDot('err');
-    } else {
-      setSyncDot('ok');
+      return false;
     }
+    setSyncDot('ok');
+    return true;
   } catch(e) {
     console.error('集合住宅保存エラー:', e);
     setSyncDot('err');
+    return false;
   }
 }
 
@@ -1810,10 +1825,13 @@ async function loadStaffMarkers(sess) {
     }
 
     updateAll();
-    // 集合住宅データも同期
-    loadAptRecords();
-    loadDynamicApts();
-  } catch(e) { setSyncDot('err'); }
+    // 集合住宅データも同期（動的Aptのマーカーを先に作ってから配布記録を反映する）
+    await loadDynamicApts();
+    await loadAptRecords();
+  } catch(e) {
+    console.error('loadStaffMarkersエラー:', e);
+    setSyncDot('err');
+  }
 }
 
 function setSyncDot(s) { document.getElementById('sync-dot').className = s; }
@@ -1822,15 +1840,20 @@ function showSyncDebug() {
   const sess = sessions[0];
   const total = sMarkers.reduce((s,a)=>s+a.length,0);
   const timeStr = lastSyncTime ? new Date(lastSyncTime).toLocaleTimeString('ja-JP') : '未同期';
+  const aptDoneCount = Object.keys(aptRecords).filter(k => aptRecords[k]?.done).length;
+  const dynCount = dynamicApts.length;
   const doNow = confirm(
     `📡 同期状態\n\n` +
     `セッションID: ${sess ? sess.id : 'なし'}\n` +
     `最終同期: ${timeStr}\n` +
-    `取得済みマーカー数: ${total}件\n\n` +
+    `取得済みマーカー数: ${total}件\n` +
+    `集合住宅の配布記録: ${aptDoneCount}件\n` +
+    `追加された集合住宅: ${dynCount}件\n\n` +
     `「OK」を押すと今すぐ再同期します。`
   );
   if (doNow && sess) {
-    setSyncDot(''); // 同期中は一旦グレーに
+    setSyncDot('');
+    loadDynamicApts().then(() => loadAptRecords());
     loadStaffMarkers(sess);
   }
 }
@@ -2232,33 +2255,48 @@ async function confirmAddApt() {
     dynamic: true
   };
 
-  // 配布記録を即時セット
-  aptRecords[apt.id] = {
-    qty, done: true,
-    memberId: newAptSelectedMemberId,
-    memberName: newAptSelectedMemberName,
-    ts: Date.now()
-  };
+  // ローディング表示
+  const okBtn = document.getElementById('new-apt-ok-btn');
+  const okBtnOriginalText = okBtn.textContent;
+  okBtn.textContent = '保存中...';
+  okBtn.disabled = true;
 
-  dynamicApts.push(apt);
-  saveDynamicApts();
-  saveAptRecords();
+  try {
+    // 先にSupabaseへ保存（dynamic_apts→apt_recordsの順。地図のピンより先に確実性を確認）
+    const dynResult = await saveDynamicAptToSupabase(apt);
+    if (!dynResult) throw new Error('集合住宅の保存に失敗しました');
 
-  // Supabaseに保存
-  await saveAptToSupabase(apt, qty, newAptSelectedMemberId, newAptSelectedMemberName);
-  await saveDynamicAptToSupabase(apt);
+    const aptResult = await saveAptToSupabase(apt, qty, newAptSelectedMemberId, newAptSelectedMemberName);
+    if (!aptResult) throw new Error('配布記録の保存に失敗しました');
 
-  // 地図にピン追加
-  addDynamicAptMarker(apt);
+    // 保存に成功したらローカル状態・地図に反映
+    aptRecords[apt.id] = {
+      qty, done: true,
+      memberId: newAptSelectedMemberId,
+      memberName: newAptSelectedMemberName,
+      ts: Date.now()
+    };
+    dynamicApts.push(apt);
+    saveDynamicApts();
+    saveAptRecords();
+    addDynamicAptMarker(apt);
 
-  closeAddAptModal();
-  toggleAddAptMode();
-  updateAll();
-  updateAptBadge();
+    closeAddAptModal();
+    toggleAddAptMode();
+    updateAll();
+    updateAptBadge();
+  } catch(e) {
+    console.error('集合住宅追加エラー:', e);
+    alert('保存に失敗しました。\n\n' + e.message + '\n\n通信環境を確認して、もう一度お試しください。');
+  } finally {
+    okBtn.textContent = okBtnOriginalText;
+    okBtn.disabled = false;
+  }
 }
 
 async function saveDynamicAptToSupabase(apt) {
-  const sess = sessions[0]; if (!sess) return;
+  const sess = sessions[0];
+  if (!sess) { console.error('セッションが見つかりません'); return false; }
   const body = {
     apt_id: apt.id, session_id: sess.id, name: apt.name,
     lat: apt.lat, lng: apt.lng, units: apt.units, default_qty: apt.defaultQty
@@ -2287,12 +2325,14 @@ async function saveDynamicAptToSupabase(apt) {
       const t = await r.text().catch(()=>'');
       console.error('動的集合住宅保存失敗:', r.status, t);
       setSyncDot('err');
-    } else {
-      setSyncDot('ok');
+      return false;
     }
+    setSyncDot('ok');
+    return true;
   } catch(e) {
     console.error('動的集合住宅保存エラー:', e);
     setSyncDot('err');
+    return false;
   }
 }
 
