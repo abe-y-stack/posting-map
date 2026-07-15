@@ -1502,34 +1502,74 @@ function buildAptPopup(popup, apt, marker) {
 // 集合住宅配布をSupabaseに保存
 async function saveAptToSupabase(apt, qty, memberId, memberName) {
   const sess = sessions[0]; if (!sess) return;
-  await api('apt_records', {
-    method: 'POST',
-    headers: { 'Prefer': 'resolution=merge-duplicates,return=minimal' },
-    body: JSON.stringify({ session_id: sess.id, apt_id: apt.id, apt_name: apt.name, qty, done: true, member_id: memberId, member_name: memberName })
-  }).catch(() => {});
+  const body = {
+    session_id: sess.id, apt_id: apt.id, apt_name: apt.name,
+    qty, done: true, member_id: memberId, member_name: memberName
+  };
+  try {
+    const checkR = await fetch(`${SB}/rest/v1/apt_records?session_id=eq.${encodeURIComponent(sess.id)}&apt_id=eq.${encodeURIComponent(apt.id)}&select=id`, {
+      headers: { 'apikey': KEY, 'Content-Type': 'application/json' }
+    });
+    const existing = checkR.ok ? await checkR.json() : [];
+
+    let r;
+    if (Array.isArray(existing) && existing.length > 0) {
+      r = await fetch(`${SB}/rest/v1/apt_records?session_id=eq.${encodeURIComponent(sess.id)}&apt_id=eq.${encodeURIComponent(apt.id)}`, {
+        method: 'PATCH',
+        headers: { 'apikey': KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify(body)
+      });
+    } else {
+      r = await fetch(`${SB}/rest/v1/apt_records`, {
+        method: 'POST',
+        headers: { 'apikey': KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify(body)
+      });
+    }
+    if (!r.ok) {
+      const t = await r.text().catch(()=>'');
+      console.error('集合住宅保存失敗:', r.status, t);
+      setSyncDot('err');
+    } else {
+      setSyncDot('ok');
+    }
+  } catch(e) {
+    console.error('集合住宅保存エラー:', e);
+    setSyncDot('err');
+  }
 }
 
 // ローカル保存・読込
 function saveAptRecords() {
   try { localStorage.setItem('apt_records_v1', JSON.stringify(aptRecords)); } catch(e) {}
 }
-function loadAptRecords() {
+async function loadAptRecords() {
   try {
     const raw = localStorage.getItem('apt_records_v1');
     if (raw) aptRecords = JSON.parse(raw);
   } catch(e) {}
-  // Supabaseからも取得
   const sess = sessions[0]; if (!sess) return;
-  api(`apt_records?session_id=eq.${sess.id}&select=*`, { method:'GET', json:true, prefer:'' })
-    .then(data => {
-      if (!Array.isArray(data)) return;
-      data.forEach(d => {
-        aptRecords[d.apt_id] = { qty: d.qty, done: d.done, memberId: d.member_id, memberName: d.member_name, ts: Date.now() };
-      });
-      saveAptRecords();
-      APARTMENTS.forEach(apt => refreshAptIcon(apt));
-      updateAptBadge();
-    }).catch(() => {});
+  try {
+    const r = await fetch(`${SB}/rest/v1/apt_records?session_id=eq.${encodeURIComponent(sess.id)}&select=*`, {
+      headers: { 'apikey': KEY, 'Content-Type': 'application/json' }
+    });
+    if (!r.ok) {
+      console.error('apt_records取得失敗:', r.status, await r.text().catch(()=>''));
+      return;
+    }
+    const data = await r.json();
+    if (!Array.isArray(data)) return;
+    console.log(`apt_records取得: ${data.length}件`);
+    data.forEach(d => {
+      aptRecords[d.apt_id] = { qty: d.qty, done: d.done, memberId: d.member_id, memberName: d.member_name, ts: Date.now() };
+    });
+    saveAptRecords();
+    APARTMENTS.forEach(apt => refreshAptIcon(apt));
+    dynamicApts.forEach(apt => refreshAptIcon(apt));
+    updateAptBadge();
+  } catch(e) {
+    console.error('apt_records取得エラー:', e);
+  }
 }
 
 // ヘッダーバッジ更新
@@ -2184,11 +2224,41 @@ async function confirmAddApt() {
 
 async function saveDynamicAptToSupabase(apt) {
   const sess = sessions[0]; if (!sess) return;
-  await api('dynamic_apts', {
-    method: 'POST',
-    headers: { 'Prefer': 'resolution=merge-duplicates,return=minimal' },
-    body: JSON.stringify({ apt_id: apt.id, session_id: sess.id, name: apt.name, lat: apt.lat, lng: apt.lng, units: apt.units, default_qty: apt.defaultQty })
-  }).catch(() => {});
+  const body = {
+    apt_id: apt.id, session_id: sess.id, name: apt.name,
+    lat: apt.lat, lng: apt.lng, units: apt.units, default_qty: apt.defaultQty
+  };
+  try {
+    const checkR = await fetch(`${SB}/rest/v1/dynamic_apts?apt_id=eq.${encodeURIComponent(apt.id)}&select=id`, {
+      headers: { 'apikey': KEY, 'Content-Type': 'application/json' }
+    });
+    const existing = checkR.ok ? await checkR.json() : [];
+
+    let r;
+    if (Array.isArray(existing) && existing.length > 0) {
+      r = await fetch(`${SB}/rest/v1/dynamic_apts?apt_id=eq.${encodeURIComponent(apt.id)}`, {
+        method: 'PATCH',
+        headers: { 'apikey': KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify(body)
+      });
+    } else {
+      r = await fetch(`${SB}/rest/v1/dynamic_apts`, {
+        method: 'POST',
+        headers: { 'apikey': KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify(body)
+      });
+    }
+    if (!r.ok) {
+      const t = await r.text().catch(()=>'');
+      console.error('動的集合住宅保存失敗:', r.status, t);
+      setSyncDot('err');
+    } else {
+      setSyncDot('ok');
+    }
+  } catch(e) {
+    console.error('動的集合住宅保存エラー:', e);
+    setSyncDot('err');
+  }
 }
 
 function addDynamicAptMarker(apt) {
@@ -2223,24 +2293,33 @@ function removeDynamicApt(aptId) {
   api(`apt_records?apt_id=eq.${aptId}&session_id=eq.${sess.id}`, { method:'DELETE' }).catch(()=>{});
 }
 
-function loadDynamicApts() {
+async function loadDynamicApts() {
   try {
     const raw = localStorage.getItem('dynamic_apts_v1');
     if (raw) dynamicApts = JSON.parse(raw);
   } catch(e) {}
-  // Supabaseからも取得
   const sess = sessions[0]; if (!sess) return;
-  api(`dynamic_apts?session_id=eq.${sess.id}&select=*`, { method:'GET', json:true, prefer:'' })
-    .then(data => {
-      if (!Array.isArray(data)) return;
-      data.forEach(d => {
-        if (dynamicApts.find(a => a.id === d.apt_id)) return; // 重複スキップ
-        const apt = { id: d.apt_id, name: d.name, lat: d.lat, lng: d.lng, units: d.units, defaultQty: d.default_qty, addr: `${d.lat.toFixed(5)}, ${d.lng.toFixed(5)}`, dynamic: true };
-        dynamicApts.push(apt);
-        addDynamicAptMarker(apt);
-      });
-      saveDynamicApts();
-    }).catch(() => {});
+  try {
+    const r = await fetch(`${SB}/rest/v1/dynamic_apts?session_id=eq.${encodeURIComponent(sess.id)}&select=*`, {
+      headers: { 'apikey': KEY, 'Content-Type': 'application/json' }
+    });
+    if (!r.ok) {
+      console.error('dynamic_apts取得失敗:', r.status, await r.text().catch(()=>''));
+      return;
+    }
+    const data = await r.json();
+    if (!Array.isArray(data)) return;
+    console.log(`dynamic_apts取得: ${data.length}件`);
+    data.forEach(d => {
+      if (dynamicApts.find(a => a.id === d.apt_id)) return;
+      const apt = { id: d.apt_id, name: d.name, lat: d.lat, lng: d.lng, units: d.units, defaultQty: d.default_qty, addr: `${d.lat.toFixed(5)}, ${d.lng.toFixed(5)}`, dynamic: true };
+      dynamicApts.push(apt);
+      addDynamicAptMarker(apt);
+    });
+    saveDynamicApts();
+  } catch(e) {
+    console.error('dynamic_apts取得エラー:', e);
+  }
 }
 
 // ── 集合住宅シート ──────────────────────────────────────
