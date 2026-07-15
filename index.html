@@ -2,6 +2,9 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>PostingMap</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -368,7 +371,7 @@ html,body{height:100%;width:100%;overflow:hidden;font-family:'Noto Sans JP',sans
   <div id="staff-hdr">
     <button style="width:32px;height:32px;border-radius:50%;border:none;background:var(--surface2);cursor:pointer;font-size:16px" onclick="showPicker()">←</button>
     <div class="s-title" id="s-title">PostingMap</div>
-    <div id="sync-dot" style="width:8px;height:8px;border-radius:50%;background:#aeaeb2;transition:background .3s;flex-shrink:0"></div>
+    <div id="sync-dot" onclick="showSyncDebug()" style="width:8px;height:8px;border-radius:50%;background:#aeaeb2;transition:background .3s;flex-shrink:0;cursor:pointer"></div>
     <div id="s-badge" style="margin-left:6px;font-size:12px;font-weight:600;color:rgba(60,60,67,0.6);background:rgba(0,0,0,0.05);padding:3px 10px;border-radius:99px">0/0</div>
     <div id="apt-badge" style="margin-left:4px;font-size:11px;font-weight:600;color:#15803d;background:#f0fdf4;padding:3px 8px;border-radius:99px;display:none"></div>
   </div>
@@ -593,6 +596,7 @@ let otherGps = {};
 let isTouching = false;
 let history = [];
 let syncTmr = null;
+let lastSyncTime = null;
 
 // modal state
 let nmTransport = 'car', nmColor = COLORS[0];
@@ -1593,10 +1597,21 @@ function addStaffMarker(mi, latlng, savedId) {
   if (!savedId) {
     history.push({ mi, id });
     const sess = sessions[0];
-    api('markers', {
-      method: 'POST', prefer: 'return=minimal',
+    fetch(`${SB}/rest/v1/markers`, {
+      method: 'POST',
+      headers: { 'apikey': KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
       body: JSON.stringify({ id, session: sess.id, member_id: sess.members[mi].id, lat: latlng.lat, lng: latlng.lng })
-    }).catch(() => {});
+    }).then(r => {
+      if (!r.ok) {
+        setSyncDot('err');
+        r.text().then(t => console.error('マーカー送信失敗:', r.status, t));
+      } else {
+        setSyncDot('ok');
+      }
+    }).catch(e => {
+      setSyncDot('err');
+      console.error('マーカー送信エラー:', e);
+    });
   }
   updateAll();
 }
@@ -1674,9 +1689,19 @@ function resetMy() {
 // ============================================================
 async function loadStaffMarkers(sess) {
   try {
-    const data = await api(`markers?session=eq.${sess.id}&select=*`, { method: 'GET', json: true, prefer: '' });
+    const r = await fetch(`${SB}/rest/v1/markers?session=eq.${encodeURIComponent(sess.id)}&select=*`, {
+      headers: { 'apikey': KEY, 'Content-Type': 'application/json' }
+    });
+    if (!r.ok) {
+      const t = await r.text().catch(()=>'');
+      console.error('markers取得失敗:', r.status, t);
+      setSyncDot('err');
+      return;
+    }
+    const data = await r.json();
     if (!Array.isArray(data)) return;
     setSyncDot('ok');
+    lastSyncTime = Date.now();
 
     const localIds = new Set();
     sMarkers.forEach(a => a.forEach(m => localIds.add(m.id)));
@@ -1719,6 +1744,21 @@ async function loadStaffMarkers(sess) {
 }
 
 function setSyncDot(s) { document.getElementById('sync-dot').className = s; }
+
+function showSyncDebug() {
+  const sess = sessions[0];
+  const total = sMarkers.reduce((s,a)=>s+a.length,0);
+  const timeStr = lastSyncTime ? new Date(lastSyncTime).toLocaleTimeString('ja-JP') : '未同期';
+  alert(
+    `📡 同期状態\n\n` +
+    `セッションID: ${sess ? sess.id : 'なし'}\n` +
+    `最終同期: ${timeStr}\n` +
+    `取得済みマーカー数: ${total}件\n\n` +
+    `もし他の人の配布状況が反映されない場合:\n` +
+    `・画面を下に引っ張って再読み込みしてください\n` +
+    `・それでも直らない場合はブラウザを一度完全に閉じて開き直してください`
+  );
+}
 
 function makeOtherGpsIcon(m) {
   return L.divIcon({
