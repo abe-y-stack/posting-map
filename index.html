@@ -2,6 +2,9 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>PostingMap</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -368,7 +371,7 @@ html,body{height:100%;width:100%;overflow:hidden;font-family:'Noto Sans JP',sans
   <div id="staff-hdr">
     <button style="width:32px;height:32px;border-radius:50%;border:none;background:var(--surface2);cursor:pointer;font-size:16px" onclick="showPicker()">←</button>
     <div class="s-title" id="s-title">PostingMap</div>
-    <div id="sync-dot" style="width:8px;height:8px;border-radius:50%;background:#aeaeb2;transition:background .3s;flex-shrink:0"></div>
+    <div id="sync-dot" onclick="showSyncDebug()" style="width:8px;height:8px;border-radius:50%;background:#aeaeb2;transition:background .3s;flex-shrink:0;cursor:pointer"></div>
     <div id="s-badge" style="margin-left:6px;font-size:12px;font-weight:600;color:rgba(60,60,67,0.6);background:rgba(0,0,0,0.05);padding:3px 10px;border-radius:99px">0/0</div>
     <div id="apt-badge" style="margin-left:4px;font-size:11px;font-weight:600;color:#15803d;background:#f0fdf4;padding:3px 8px;border-radius:99px;display:none"></div>
   </div>
@@ -593,6 +596,7 @@ let otherGps = {};
 let isTouching = false;
 let history = [];
 let syncTmr = null;
+let lastSyncTime = null;
 
 // modal state
 let nmTransport = 'car', nmColor = COLORS[0];
@@ -1133,6 +1137,18 @@ function showPicker() {
   document.getElementById('picker-overlay').style.display = 'flex';
 }
 
+function getActiveSession() {
+  if (!sessions.length) return null;
+  // 前回使ったセッションIDが記録されていれば、それを優先的に使う
+  const lastId = localStorage.getItem('pm_last_session_id');
+  if (lastId) {
+    const found = sessions.find(s => s.id === lastId);
+    if (found) return found;
+  }
+  // なければ最新のセッションを使う
+return sessions[0];
+}
+
 function renderPickerGrid() {
   const grid = document.getElementById('picker-grid');
   const noSess = document.getElementById('picker-no-sess');
@@ -1146,8 +1162,7 @@ function renderPickerGrid() {
   }
 
   noSess.style.display = 'none';
-  // セッションが複数ある場合は最新を使う（将来的にはセッション選択UIを追加可能）
-  const sess = sessions[0];
+  const sess = getActiveSession();
   sessName.textContent = `${sess.title||'無題'} / ${sess.date||''}`;
 
   grid.innerHTML = (sess.members||[]).map((m,i) => `
@@ -1165,13 +1180,20 @@ function renderPickerGrid() {
 // Staff: join
 // ============================================================
 function joinStaff(idx) {
-  const sess = sessions[0];
+  const sess = getActiveSession();
   if (!sess) return;
   myIdx = idx;
+  // このセッションを「使用中」として記憶（リロード後も同じセッションを使い続ける）
+  try { localStorage.setItem('pm_last_session_id', sess.id); } catch(e) {}
   document.getElementById('picker-overlay').style.display = 'none';
   document.getElementById('s-title').textContent = sess.title || 'PostingMap';
 
-  if (!smap) initStaffMap();
+  if (!smap) {
+    initStaffMap();
+  } else if (Object.keys(aptMarkers).length === 0) {
+    // smapは既にあるが集合住宅ピンがまだ描画されていない場合は再描画
+    drawApartments();
+  }
   sMarkers = sess.members.map(() => []);
   history = [];
 
@@ -1179,8 +1201,7 @@ function joinStaff(idx) {
   setTimeout(layoutStaff, 50);
   drawPastZones(sess); // 過去配布エリアを最背面に描画
   drawZones(sess);     // 現在のエリアを前面に描画
-  loadAptRecords();
-  loadDynamicApts();
+  loadDynamicApts().then(() => loadAptRecords());
   // 地図のズームレベルが一定以上になったらOSM集合住宅を取得
   smap.on('zoomend', () => {
     if (smap.getZoom() >= 14) fetchOsmApartments();
@@ -1193,6 +1214,10 @@ function joinStaff(idx) {
   loadStaffMarkers(sess);
   if (syncTmr) clearInterval(syncTmr);
   syncTmr = setInterval(() => loadStaffMarkers(sess), 5000);
+
+  // PCでタブがバックグラウンドになるとsetIntervalが間引かれるため、
+  // タブが再度アクティブになった瞬間に即座に再同期する
+  setupVisibilitySync(sess);
 
   setTimeout(() => { document.getElementById('s-hint').style.opacity = '0'; }, 3000);
 }
@@ -1212,7 +1237,7 @@ function layoutStaff() {
   if (smap) smap.invalidateSize();
 
   // エリアにズーム
-  const sess = sessions[0];
+  const sess = getActiveSession();
   if (!sess) return;
   const m = sess.members[myIdx];
   if (m && m.area && smap) {
@@ -1274,6 +1299,8 @@ function refreshAptIcon(apt) {
 
 function drawApartments() {
   APARTMENTS.forEach(apt => {
+    // 既に描画済みならスキップ（重複防止）
+    if (aptMarkers[apt.id]) return;
     const icon = L.divIcon({
       html: aptIconHtml(apt),
       iconSize: [140, 36], iconAnchor: [70, 36], popupAnchor: [-60, -36], className: ''
@@ -1419,7 +1446,7 @@ function buildAptPopup(popup, apt, marker) {
 
         const memberSel = document.createElement('div');
         memberSel.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px';
-        const sess = sessions[0];
+        const sess = getActiveSession();
         let selectedMemberId = sess?.members[myIdx]?.id || '';
         let selectedMemberName = sess?.members[myIdx]?.name || '';
         (sess?.members || []).forEach(m => {
@@ -1470,12 +1497,25 @@ function buildAptPopup(popup, apt, marker) {
         const doneBtn = document.createElement('button');
         doneBtn.style.cssText = 'width:100%;padding:11px;border-radius:10px;border:none;background:#22c55e;color:#fff;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px;font-family:inherit';
         doneBtn.textContent = '✓ 配布完了';
-        doneBtn.addEventListener('click', () => {
+        doneBtn.addEventListener('click', async () => {
           const qty = parseInt(input.value);
           if (!qty || qty < 1) { input.style.borderColor='#ff3b30'; return; }
+
+          doneBtn.textContent = '保存中...';
+          doneBtn.disabled = true;
+
+          const ok = await saveAptToSupabase(apt, qty, selectedMemberId, selectedMemberName);
+
+          if (!ok) {
+            doneBtn.textContent = '✓ 配布完了';
+            doneBtn.disabled = false;
+            alert('保存に失敗しました。通信環境を確認してもう一度お試しください。');
+            return;
+          }
+
+          // 保存成功後にローカル状態・UIを更新
           aptRecords[apt.id] = { qty, done: true, memberId: selectedMemberId, memberName: selectedMemberName, ts: Date.now() };
           saveAptRecords();
-          saveAptToSupabase(apt, qty, selectedMemberId, selectedMemberName);
           refreshAptIcon(apt);
           marker.closePopup();
           updateAll();
@@ -1497,35 +1537,78 @@ function buildAptPopup(popup, apt, marker) {
 
 // 集合住宅配布をSupabaseに保存
 async function saveAptToSupabase(apt, qty, memberId, memberName) {
-  const sess = sessions[0]; if (!sess) return;
-  await api('apt_records', {
-    method: 'POST',
-    headers: { 'Prefer': 'resolution=merge-duplicates,return=minimal' },
-    body: JSON.stringify({ session_id: sess.id, apt_id: apt.id, apt_name: apt.name, qty, done: true, member_id: memberId, member_name: memberName })
-  }).catch(() => {});
+  const sess = getActiveSession();
+  if (!sess) { console.error('セッションが見つかりません'); return false; }
+  const body = {
+    session_id: sess.id, apt_id: apt.id, apt_name: apt.name,
+    qty, done: true, member_id: memberId, member_name: memberName
+  };
+  try {
+    const checkR = await fetch(`${SB}/rest/v1/apt_records?session_id=eq.${encodeURIComponent(sess.id)}&apt_id=eq.${encodeURIComponent(apt.id)}&select=id`, {
+      headers: { 'apikey': KEY, 'Content-Type': 'application/json' }
+    });
+    const existing = checkR.ok ? await checkR.json() : [];
+
+    let r;
+    if (Array.isArray(existing) && existing.length > 0) {
+      r = await fetch(`${SB}/rest/v1/apt_records?session_id=eq.${encodeURIComponent(sess.id)}&apt_id=eq.${encodeURIComponent(apt.id)}`, {
+        method: 'PATCH',
+        headers: { 'apikey': KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify(body)
+      });
+    } else {
+      r = await fetch(`${SB}/rest/v1/apt_records`, {
+        method: 'POST',
+        headers: { 'apikey': KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify(body)
+      });
+    }
+    if (!r.ok) {
+      const t = await r.text().catch(()=>'');
+      console.error('集合住宅保存失敗:', r.status, t);
+      setSyncDot('err');
+      return false;
+    }
+    setSyncDot('ok');
+    return true;
+  } catch(e) {
+    console.error('集合住宅保存エラー:', e);
+    setSyncDot('err');
+    return false;
+  }
 }
 
 // ローカル保存・読込
 function saveAptRecords() {
   try { localStorage.setItem('apt_records_v1', JSON.stringify(aptRecords)); } catch(e) {}
 }
-function loadAptRecords() {
+async function loadAptRecords() {
   try {
     const raw = localStorage.getItem('apt_records_v1');
     if (raw) aptRecords = JSON.parse(raw);
   } catch(e) {}
-  // Supabaseからも取得
-  const sess = sessions[0]; if (!sess) return;
-  api(`apt_records?session_id=eq.${sess.id}&select=*`, { method:'GET', json:true, prefer:'' })
-    .then(data => {
-      if (!Array.isArray(data)) return;
-      data.forEach(d => {
-        aptRecords[d.apt_id] = { qty: d.qty, done: d.done, memberId: d.member_id, memberName: d.member_name, ts: Date.now() };
-      });
-      saveAptRecords();
-      APARTMENTS.forEach(apt => refreshAptIcon(apt));
-      updateAptBadge();
-    }).catch(() => {});
+  const sess = getActiveSession(); if (!sess) return;
+  try {
+    const r = await fetch(`${SB}/rest/v1/apt_records?session_id=eq.${encodeURIComponent(sess.id)}&select=*`, {
+      headers: { 'apikey': KEY, 'Content-Type': 'application/json' }
+    });
+    if (!r.ok) {
+      console.error('apt_records取得失敗:', r.status, await r.text().catch(()=>''));
+      return;
+    }
+    const data = await r.json();
+    if (!Array.isArray(data)) return;
+    console.log(`apt_records取得: ${data.length}件`);
+    data.forEach(d => {
+      aptRecords[d.apt_id] = { qty: d.qty, done: d.done, memberId: d.member_id, memberName: d.member_name, ts: Date.now() };
+    });
+    saveAptRecords();
+    APARTMENTS.forEach(apt => refreshAptIcon(apt));
+    dynamicApts.forEach(apt => refreshAptIcon(apt));
+    updateAptBadge();
+  } catch(e) {
+    console.error('apt_records取得エラー:', e);
+  }
 }
 
 // ヘッダーバッジ更新
@@ -1592,11 +1675,22 @@ function addStaffMarker(mi, latlng, savedId) {
   bindSPop(obj, mi);
   if (!savedId) {
     history.push({ mi, id });
-    const sess = sessions[0];
-    api('markers', {
-      method: 'POST', prefer: 'return=minimal',
+    const sess = getActiveSession();
+    fetch(`${SB}/rest/v1/markers`, {
+      method: 'POST',
+      headers: { 'apikey': KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
       body: JSON.stringify({ id, session: sess.id, member_id: sess.members[mi].id, lat: latlng.lat, lng: latlng.lng })
-    }).catch(() => {});
+    }).then(r => {
+      if (!r.ok) {
+        setSyncDot('err');
+        r.text().then(t => console.error('マーカー送信失敗:', r.status, t));
+      } else {
+        setSyncDot('ok');
+      }
+    }).catch(e => {
+      setSyncDot('err');
+      console.error('マーカー送信エラー:', e);
+    });
   }
   updateAll();
 }
@@ -1632,7 +1726,7 @@ function delSMarker(id, mi) {
   }
   smap.closePopup();
   // Supabaseから削除
-  const sess = sessions[0];
+  const sess = getActiveSession();
   if (sess && sess.id) {
     api(`markers?id=eq.${id}&session=eq.${sess.id}`, { method: 'DELETE' })
       .then(r => { if(!r.ok) console.error('削除失敗', id); })
@@ -1650,7 +1744,7 @@ function undoLast() {
 
 function resetMy() {
   showConfirm('リセット', '自分のマーカーをすべて削除しますか？', () => {
-    const sess = sessions[0];
+    const sess = getActiveSession();
     if (!sess) return;
     // まずマップから全マーカーを削除
     sMarkers[myIdx].forEach(mk => {
@@ -1672,11 +1766,43 @@ function resetMy() {
 // ============================================================
 // Staff: sync
 // ============================================================
+// ── タブ復帰時に即座に再同期（PCブラウザのバックグラウンド間引き対策） ──
+let visibilitySyncBound = false;
+function setupVisibilitySync(sess) {
+  if (visibilitySyncBound) return; // リスナーは1回だけ登録
+  visibilitySyncBound = true;
+
+  const resync = () => {
+    const currentSess = getActiveSession();
+    if (currentSess) {
+      console.log('タブ復帰 → 即時再同期');
+      loadStaffMarkers(currentSess);
+    }
+  };
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') resync();
+  });
+  window.addEventListener('focus', resync);
+  // モバイルでもスリープ復帰時に効くようpageshowも追加
+  window.addEventListener('pageshow', resync);
+}
+
 async function loadStaffMarkers(sess) {
   try {
-    const data = await api(`markers?session=eq.${sess.id}&select=*`, { method: 'GET', json: true, prefer: '' });
+    const r = await fetch(`${SB}/rest/v1/markers?session=eq.${encodeURIComponent(sess.id)}&select=*`, {
+      headers: { 'apikey': KEY, 'Content-Type': 'application/json' }
+    });
+    if (!r.ok) {
+      const t = await r.text().catch(()=>'');
+      console.error('markers取得失敗:', r.status, t);
+      setSyncDot('err');
+      return;
+    }
+    const data = await r.json();
     if (!Array.isArray(data)) return;
     setSyncDot('ok');
+    lastSyncTime = Date.now();
 
     const localIds = new Set();
     sMarkers.forEach(a => a.forEach(m => localIds.add(m.id)));
@@ -1712,13 +1838,38 @@ async function loadStaffMarkers(sess) {
     }
 
     updateAll();
-    // 集合住宅データも同期
-    loadAptRecords();
-    loadDynamicApts();
-  } catch(e) { setSyncDot('err'); }
+    // 集合住宅データも同期（動的Aptのマーカーを先に作ってから配布記録を反映する）
+    await loadDynamicApts();
+    await loadAptRecords();
+  } catch(e) {
+    console.error('loadStaffMarkersエラー:', e);
+    setSyncDot('err');
+  }
 }
 
 function setSyncDot(s) { document.getElementById('sync-dot').className = s; }
+
+function showSyncDebug() {
+  const sess = getActiveSession();
+  const total = sMarkers.reduce((s,a)=>s+a.length,0);
+  const timeStr = lastSyncTime ? new Date(lastSyncTime).toLocaleTimeString('ja-JP') : '未同期';
+  const aptDoneCount = Object.keys(aptRecords).filter(k => aptRecords[k]?.done).length;
+  const dynCount = dynamicApts.length;
+  const doNow = confirm(
+    `📡 同期状態\n\n` +
+    `セッションID: ${sess ? sess.id : 'なし'}\n` +
+    `最終同期: ${timeStr}\n` +
+    `取得済みマーカー数: ${total}件\n` +
+    `集合住宅の配布記録: ${aptDoneCount}件\n` +
+    `追加された集合住宅: ${dynCount}件\n\n` +
+    `「OK」を押すと今すぐ再同期します。`
+  );
+  if (doNow && sess) {
+    setSyncDot('');
+    loadDynamicApts().then(() => loadAptRecords());
+    loadStaffMarkers(sess);
+  }
+}
 
 function makeOtherGpsIcon(m) {
   return L.divIcon({
@@ -1750,7 +1901,7 @@ function updateOGPS(mid, lat, lng, m) {
 // Staff: UI
 // ============================================================
 function updateAll() {
-  const sess = sessions[0];
+  const sess = getActiveSession();
   if (!sess) return;
   renderRbar(sess);
   drawZones(sess);
@@ -1764,7 +1915,7 @@ function aptDoneTotal() {
 
 // メンバーインデックスに対応する集合住宅の配布済み枚数
 function aptDoneForMember(memberIdx) {
-  const sess = sessions[0];
+  const sess = getActiveSession();
   if (!sess) return 0;
   const memberId = sess.members[memberIdx]?.id || '';
   return [...APARTMENTS, ...dynamicApts]
@@ -1821,7 +1972,7 @@ function updateBadge(sess) {
 }
 
 function focusMember(i) {
-  const sess = sessions[0];
+  const sess = getActiveSession();
   if (!sess || !sess.members) return;
   const m = sess.members[i];
   if (m && m.area && smap) smap.fitBounds(L.latLngBounds(m.area.map(c=>L.latLng(c[0],c[1]))),{padding:[40,40]});
@@ -1837,7 +1988,7 @@ function updateBizVis() {
   if (z >= BIZ_Z) fetchBizVis();
 }
 function fetchBizVis() {
-  const sess = sessions[0]; if(!sess) return;
+  const sess = getActiveSession(); if(!sess) return;
   (sess.members||[]).forEach(m => {
     if (!m.area || sBizFetched[m.id]) return;
     const lats=m.area.map(c=>c[0]),lngs=m.area.map(c=>c[1]);
@@ -1866,7 +2017,7 @@ let osmAptFetched = false;
 
 async function fetchOsmApartments() {
   if (osmAptFetched) return;
-  const sess = sessions[0]; if (!sess) return;
+  const sess = getActiveSession(); if (!sess) return;
 
   // 全エリアのbboxを統合
   const allLats = [], allLngs = [];
@@ -1964,7 +2115,7 @@ function startGPS() {
       gpsM=L.marker(ll,{icon:arrowIcon(gpsH),zIndexOffset:9000}).addTo(smap);
     }else{gpsM.setLatLng(ll);gpsC.setLatLng(ll).setRadius(accuracy);}
     updateArrow();
-    const sess=sessions[0]; if(!sess)return;
+    const sess=getActiveSession(); if(!sess)return;
     const mid=sess.members[myIdx]?.id;
     if(mid) {
       // upsert: session+member_idの組み合わせで上書き
@@ -2009,7 +2160,7 @@ function centerGPS(){if(gpsM)smap.setView(gpsM.getLatLng(),17);}
 // Stat
 // ============================================================
 function showStat() {
-  const sess=sessions[0]; if(!sess)return;
+  const sess=getActiveSession(); if(!sess)return;
   let td=0;
 
   const rows=(sess.members||[]).map((m,i)=>{
@@ -2060,7 +2211,7 @@ function toggleAddAptMode() {
 function openAddAptModal(latlng) {
   pendingAptLatlng = latlng;
   // メンバーボタンを生成
-  const sess = sessions[0];
+  const sess = getActiveSession();
   newAptSelectedMemberId = sess?.members[myIdx]?.id || '';
   newAptSelectedMemberName = sess?.members[myIdx]?.name || '';
   const sel = document.getElementById('new-apt-member-sel');
@@ -2117,38 +2268,97 @@ async function confirmAddApt() {
     dynamic: true
   };
 
-  // 配布記録を即時セット
-  aptRecords[apt.id] = {
-    qty, done: true,
-    memberId: newAptSelectedMemberId,
-    memberName: newAptSelectedMemberName,
-    ts: Date.now()
-  };
+  // ローディング表示
+  const okBtn = document.getElementById('new-apt-ok-btn');
+  const okBtnOriginalText = okBtn.textContent;
+  okBtn.textContent = '保存中...';
+  okBtn.disabled = true;
 
-  dynamicApts.push(apt);
-  saveDynamicApts();
-  saveAptRecords();
+  try {
+    // 先にSupabaseへ保存（dynamic_apts→apt_recordsの順。地図のピンより先に確実性を確認）
+    const dynResult = await saveDynamicAptToSupabase(apt);
+    if (!dynResult) throw new Error('集合住宅の保存に失敗しました');
 
-  // Supabaseに保存
-  await saveAptToSupabase(apt, qty, newAptSelectedMemberId, newAptSelectedMemberName);
-  await saveDynamicAptToSupabase(apt);
+    const aptResult = await saveAptToSupabase(apt, qty, newAptSelectedMemberId, newAptSelectedMemberName);
+    if (!aptResult) throw new Error('配布記録の保存に失敗しました');
 
-  // 地図にピン追加
-  addDynamicAptMarker(apt);
+    // 保存に成功したらローカル状態・地図に反映
+    aptRecords[apt.id] = {
+      qty, done: true,
+      memberId: newAptSelectedMemberId,
+      memberName: newAptSelectedMemberName,
+      ts: Date.now()
+    };
+    dynamicApts.push(apt);
+    saveDynamicApts();
+    saveAptRecords();
+    addDynamicAptMarker(apt);
 
-  closeAddAptModal();
-  toggleAddAptMode();
-  updateAll();
-  updateAptBadge();
+    closeAddAptModal();
+    toggleAddAptMode();
+    updateAll();
+    updateAptBadge();
+  } catch(e) {
+    console.error('集合住宅追加エラー:', e);
+    alert('保存に失敗しました。\n\n' + e.message + '\n\n通信環境を確認して、もう一度お試しください。');
+  } finally {
+    okBtn.textContent = okBtnOriginalText;
+    okBtn.disabled = false;
+  }
 }
 
 async function saveDynamicAptToSupabase(apt) {
-  const sess = sessions[0]; if (!sess) return;
-  await api('dynamic_apts', {
-    method: 'POST',
-    headers: { 'Prefer': 'resolution=merge-duplicates,return=minimal' },
-    body: JSON.stringify({ apt_id: apt.id, session_id: sess.id, name: apt.name, lat: apt.lat, lng: apt.lng, units: apt.units, default_qty: apt.defaultQty })
-  }).catch(() => {});
+  const sess = getActiveSession();
+  if (!sess) { console.error('セッションが見つかりません'); return false; }
+  const body = {
+    apt_id: apt.id, session_id: sess.id, name: apt.name,
+    lat: apt.lat, lng: apt.lng, units: apt.units, default_qty: apt.defaultQty
+  };
+  try {
+    const checkR = await fetch(`${SB}/rest/v1/dynamic_apts?apt_id=eq.${encodeURIComponent(apt.id)}&select=id`, {
+      headers: { 'apikey': KEY, 'Content-Type': 'application/json' }
+    });
+    const existing = checkR.ok ? await checkR.json() : [];
+
+    let r;
+    if (Array.isArray(existing) && existing.length > 0) {
+      r = await fetch(`${SB}/rest/v1/dynamic_apts?apt_id=eq.${encodeURIComponent(apt.id)}`, {
+        method: 'PATCH',
+        headers: { 'apikey': KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify(body)
+      });
+    } else {
+      r = await fetch(`${SB}/rest/v1/dynamic_apts`, {
+        method: 'POST',
+        headers: { 'apikey': KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify(body)
+      });
+    }
+    if (!r.ok) {
+      const t = await r.text().catch(()=>'');
+      console.error('動的集合住宅保存失敗:', r.status, t);
+      setSyncDot('err');
+      return false;
+    }
+
+    // 保存後に本当に反映されたか検証（RLS等で書き込みだけ200が返り実際は反映されないケースの対策）
+    const verifyR = await fetch(`${SB}/rest/v1/dynamic_apts?apt_id=eq.${encodeURIComponent(apt.id)}&select=apt_id`, {
+      headers: { 'apikey': KEY, 'Content-Type': 'application/json' }
+    });
+    const verifyData = verifyR.ok ? await verifyR.json() : [];
+    if (!Array.isArray(verifyData) || verifyData.length === 0) {
+      console.error('動的集合住宅: 保存後の検証に失敗（テーブル未作成またはRLS設定を確認してください）');
+      setSyncDot('err');
+      return false;
+    }
+
+    setSyncDot('ok');
+    return true;
+  } catch(e) {
+    console.error('動的集合住宅保存エラー:', e);
+    setSyncDot('err');
+    return false;
+  }
 }
 
 function addDynamicAptMarker(apt) {
@@ -2178,29 +2388,48 @@ function removeDynamicApt(aptId) {
   updateAll();
   updateAptBadge();
   // Supabaseからも削除
-  const sess = sessions[0]; if (!sess) return;
+  const sess = getActiveSession(); if (!sess) return;
   api(`dynamic_apts?apt_id=eq.${aptId}&session_id=eq.${sess.id}`, { method:'DELETE' }).catch(()=>{});
   api(`apt_records?apt_id=eq.${aptId}&session_id=eq.${sess.id}`, { method:'DELETE' }).catch(()=>{});
 }
 
-function loadDynamicApts() {
+async function loadDynamicApts() {
   try {
     const raw = localStorage.getItem('dynamic_apts_v1');
     if (raw) dynamicApts = JSON.parse(raw);
   } catch(e) {}
-  // Supabaseからも取得
-  const sess = sessions[0]; if (!sess) return;
-  api(`dynamic_apts?session_id=eq.${sess.id}&select=*`, { method:'GET', json:true, prefer:'' })
-    .then(data => {
-      if (!Array.isArray(data)) return;
-      data.forEach(d => {
-        if (dynamicApts.find(a => a.id === d.apt_id)) return; // 重複スキップ
-        const apt = { id: d.apt_id, name: d.name, lat: d.lat, lng: d.lng, units: d.units, defaultQty: d.default_qty, addr: `${d.lat.toFixed(5)}, ${d.lng.toFixed(5)}`, dynamic: true };
+
+  // localStorageから復元した集合住宅も、まだ地図にピンが無ければ描画する
+  dynamicApts.forEach(apt => {
+    if (smap && !aptMarkers[apt.id]) addDynamicAptMarker(apt);
+  });
+
+  const sess = getActiveSession(); if (!sess) return;
+  try {
+    const r = await fetch(`${SB}/rest/v1/dynamic_apts?session_id=eq.${encodeURIComponent(sess.id)}&select=*`, {
+      headers: { 'apikey': KEY, 'Content-Type': 'application/json' }
+    });
+    if (!r.ok) {
+      console.error('dynamic_apts取得失敗:', r.status, await r.text().catch(()=>''));
+      return;
+    }
+    const data = await r.json();
+    if (!Array.isArray(data)) return;
+    console.log(`dynamic_apts取得: ${data.length}件`);
+    data.forEach(d => {
+      // 配列に無ければ追加
+      let apt = dynamicApts.find(a => a.id === d.apt_id);
+      if (!apt) {
+        apt = { id: d.apt_id, name: d.name, lat: d.lat, lng: d.lng, units: d.units, defaultQty: d.default_qty, addr: `${d.lat.toFixed(5)}, ${d.lng.toFixed(5)}`, dynamic: true };
         dynamicApts.push(apt);
-        addDynamicAptMarker(apt);
-      });
-      saveDynamicApts();
-    }).catch(() => {});
+      }
+      // 配列にあっても、地図にピンが無ければ必ず描画する（← リロード後にピンが消えるバグの修正）
+      if (smap && !aptMarkers[apt.id]) addDynamicAptMarker(apt);
+    });
+    saveDynamicApts();
+  } catch(e) {
+    console.error('dynamic_apts取得エラー:', e);
+  }
 }
 
 // ── 集合住宅シート ──────────────────────────────────────
@@ -2267,7 +2496,7 @@ function closeAptSheet() {
 }
 
 function doCSV(){
-  const sess=sessions[0];if(!sess)return;
+  const sess=getActiveSession();if(!sess)return;
   let csv='\uFEFF担当者,緯度,経度\n';
   (sess.members||[]).forEach((m,i)=>{(sMarkers[i]||[]).forEach(mk=>{csv+=`${m.name},${mk.latlng.lat.toFixed(6)},${mk.latlng.lng.toFixed(6)}\n`;});});
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));a.download=`${sess.title||'posting'}.csv`;a.click();
