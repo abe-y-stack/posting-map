@@ -2,2582 +2,988 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>PostingMap</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css"/>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>移動費見積り</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
-:root{
-  --bg:#f5f5f7;--surface:#fff;--surface2:#f5f5f7;
-  --border:rgba(0,0,0,.08);--border2:rgba(0,0,0,.16);
-  --text:#1d1d1f;--text2:#6e6e73;--text3:#aeaeb2;
-  --accent:#0071e3;--green:#34c759;--red:#ff3b30;--orange:#ff9500;
-  --r:14px;--r2:10px;
-  --sh:0 2px 16px rgba(0,0,0,.08);--sh2:0 8px 32px rgba(0,0,0,.14);
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui,-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;background:#fff;color:#111;font-size:16px;line-height:1.6;-webkit-text-size-adjust:100%}
+.wrap{max-width:600px;margin:0 auto;padding:24px 20px 80px}
+
+header{display:flex;justify-content:space-between;align-items:center;padding-bottom:20px;border-bottom:1px solid #111;margin-bottom:32px}
+header h1{font-size:20px;font-weight:600;letter-spacing:.02em}
+.icon-btn{width:40px;height:40px;border-radius:50%;border:1px solid #ddd;background:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:.15s}
+.icon-btn:hover{background:#111;color:#fff;border-color:#111}
+
+.block{margin-bottom:28px}
+.label{font-size:12px;font-weight:600;letter-spacing:.08em;color:#666;margin-bottom:10px;text-transform:uppercase}
+
+.field{position:relative}
+.row{display:flex;gap:8px}
+input[type=text],input[type=number]{width:100%;padding:14px;border:1px solid #ddd;border-radius:8px;font-size:16px;font-family:inherit;background:#fff;color:#111}
+input:focus{outline:none;border-color:#111}
+.mini-btn{flex:0 0 auto;padding:0 16px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;font-size:15px;transition:.15s}
+.mini-btn:hover{background:#f2f2f2;border-color:#111}
+
+.status{margin-top:8px;font-size:13px;display:flex;align-items:flex-start;gap:6px;min-height:20px}
+.status.ok{color:#111}
+.status.ng{color:#b00}
+.status.wait{color:#888}
+.dot{flex:0 0 auto;margin-top:7px;width:6px;height:6px;border-radius:50%;background:#111}
+.status.ng .dot{background:#b00}
+.status.wait .dot{background:#bbb}
+
+.cand{position:absolute;z-index:900;left:0;right:0;top:100%;margin-top:4px;background:#fff;border:1px solid #111;border-radius:8px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.12);display:none}
+.cand.on{display:block}
+.cand-item{padding:12px 14px;cursor:pointer;font-size:14px;border-bottom:1px solid #f0f0f0}
+.cand-item:last-child{border-bottom:none}
+.cand-item:hover,.cand-item.sel{background:#f2f2f2}
+.cand-src{font-size:11px;color:#888;margin-left:6px}
+.cand-empty{padding:14px;font-size:13px;color:#888}
+
+.tabs{display:flex;border-bottom:1px solid #e5e5e5}
+.tab{flex:1;padding:14px 4px;background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-1px;font-size:14px;font-family:inherit;color:#999;cursor:pointer;transition:.15s}
+.tab.on{color:#111;border-bottom-color:#111;font-weight:600}
+
+.acc-head{width:100%;display:flex;justify-content:space-between;align-items:center;padding:14px 0;background:none;border:none;border-top:1px solid #e5e5e5;font-size:14px;font-family:inherit;font-weight:600;color:#111;cursor:pointer}
+.acc-head .arw{transition:.2s}
+.acc-head.on .arw{transform:rotate(90deg)}
+.acc-body{display:none;padding:4px 0 16px}
+.acc-body.on{display:block}
+.frow{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.frow label{flex:0 0 130px;font-size:13px;color:#555}
+.frow input{flex:1}
+.chk{display:flex;align-items:center;gap:10px;margin-bottom:12px;font-size:14px}
+.chk input{width:18px;height:18px;accent-color:#111;flex:0 0 auto}
+
+.btn{width:100%;padding:16px;background:#111;color:#fff;border:none;border-radius:999px;font-size:16px;font-family:inherit;font-weight:600;cursor:pointer;transition:.15s;display:flex;align-items:center;justify-content:center;gap:10px}
+.btn:hover:not(:disabled){background:#333}
+.btn:disabled{background:#ccc;cursor:not-allowed}
+.spin{width:15px;height:15px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;display:none}
+.btn.busy .spin{display:block}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+#map{width:100%;height:260px;border:1px solid #e5e5e5;border-radius:8px;background:#f7f7f7;margin-bottom:24px}
+
+.card{border:1px solid #111;border-radius:12px;padding:20px;margin-bottom:20px}
+.card h3{font-size:15px;font-weight:600;padding-bottom:14px;border-bottom:1px solid #e5e5e5;margin-bottom:16px;display:flex;justify-content:space-between;align-items:baseline}
+.src-tag{font-size:11px;font-weight:400;color:#888}
+.line{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:7px 0;font-size:14px}
+.line .k{color:#666;flex:1 1 auto}
+.line .v{font-weight:600;text-align:right;white-space:nowrap}
+.line input{width:110px;padding:9px 10px;font-size:14px;text-align:right}
+.line a.ext{font-size:12px;padding:9px 11px;border:1px solid #ddd;border-radius:8px;text-decoration:none;color:#111;white-space:nowrap}
+.line a.ext:hover{background:#111;color:#fff;border-color:#111}
+.sep{border-top:1px solid #e5e5e5;margin:14px 0}
+.total{background:#111;color:#fff;border-radius:8px;padding:14px 16px;margin-top:14px}
+.total .line{padding:0;font-size:16px}
+.total .k{color:rgba(255,255,255,.7)}
+.total .v{font-size:20px}
+.note{font-size:12px;color:#888;margin-top:12px;line-height:1.5}
+
+.acts{display:flex;gap:8px;margin-top:16px}
+.act{flex:1;padding:13px;border:1px solid #ddd;border-radius:999px;background:#fff;font-size:13px;font-family:inherit;font-weight:600;cursor:pointer;transition:.15s}
+.act:hover{background:#111;color:#fff;border-color:#111}
+
+.item{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px;border:1px solid #e5e5e5;border-radius:8px;margin-bottom:8px}
+.item-main{flex:1;min-width:0;cursor:pointer}
+.item-t{font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item-s{font-size:12px;color:#888;margin-top:3px}
+.item-x{flex:0 0 auto;width:32px;height:32px;border:1px solid #e5e5e5;border-radius:6px;background:#fff;cursor:pointer;font-size:13px}
+.item-x:hover{background:#111;color:#fff}
+.empty{padding:28px 0;text-align:center;color:#aaa;font-size:13px}
+
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;align-items:center;justify-content:center;padding:20px}
+.modal.on{display:flex}
+.modal-in{background:#fff;border-radius:14px;padding:24px;width:100%;max-width:520px;max-height:85vh;overflow-y:auto}
+.modal-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.modal-h span{font-size:16px;font-weight:600}
+.modal-x{width:32px;height:32px;border:none;background:none;font-size:20px;cursor:pointer;color:#999}
+.modal-f{display:flex;gap:8px;margin-top:20px}
+.modal-b{flex:1;padding:13px;border-radius:999px;border:1px solid #ddd;background:#fff;font-size:14px;font-family:inherit;font-weight:600;cursor:pointer}
+.modal-b.pri{background:#111;color:#fff;border-color:#111}
+
+.diag{font-size:13px;border:1px solid #e5e5e5;border-radius:8px;padding:14px;margin-bottom:14px}
+.diag-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f2f2f2}
+.diag-row:last-child{border-bottom:none}
+.diag-ok{color:#0a0;font-weight:600}
+.diag-ng{color:#b00;font-weight:600}
+.diag-wait{color:#999}
+
+.toast{position:fixed;left:20px;right:20px;bottom:24px;max-width:560px;margin:0 auto;background:#111;color:#fff;padding:14px 18px;border-radius:10px;font-size:14px;z-index:2000;display:none;box-shadow:0 8px 30px rgba(0,0,0,.25)}
+.toast.on{display:block}
+.toast.ng{background:#b00}
+
+@media(max-width:600px){
+.wrap{padding:20px 16px 60px}
+.frow{flex-wrap:wrap}
+.frow label{flex:1 1 100%}
+.line{flex-wrap:wrap}
+.line input{width:100%}
+.line a.ext{width:100%;text-align:center}
 }
-*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html,body{height:100%;width:100%;overflow:hidden;font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
-
-/* ===== SCREENS ===== */
-.screen{position:absolute;inset:0;display:none;flex-direction:column}
-.screen.active{display:flex}
-
-/* ===== TOP ===== */
-#top{background:var(--bg);align-items:center;justify-content:center;padding:40px 28px}
-.top-logo{font-size:12px;font-weight:600;letter-spacing:.15em;color:var(--text3);text-transform:uppercase;margin-bottom:14px}
-.top-title{font-size:36px;font-weight:700;letter-spacing:-.03em;margin-bottom:8px}
-.top-sub{font-size:15px;color:var(--text2);margin-bottom:52px;text-align:center;line-height:1.6}
-.top-btns{width:100%;max-width:320px;display:flex;flex-direction:column;gap:12px}
-.top-btn{width:100%;padding:17px;border-radius:var(--r);border:none;cursor:pointer;font-family:inherit;font-size:16px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:10px;letter-spacing:-.01em;transition:transform .12s,opacity .12s}
-.top-btn:active{transform:scale(.97);opacity:.85}
-.top-btn.a{background:var(--accent);color:#fff}
-.top-btn.b{background:var(--surface);color:var(--text);border:1px solid var(--border2)}
-
-/* ===== COMMON HEADER ===== */
-.hdr{background:var(--surface);border-bottom:1px solid var(--border);height:54px;display:flex;align-items:center;padding:0 16px;gap:12px;flex-shrink:0;z-index:100}
-.hdr-back{width:32px;height:32px;border-radius:50%;border:none;background:var(--surface2);cursor:pointer;font-size:16px;color:var(--text2);display:flex;align-items:center;justify-content:center}
-.hdr-back:active{background:var(--border)}
-.hdr-title{font-size:17px;font-weight:600;flex:1;letter-spacing:-.01em}
-.hdr-btn{padding:7px 16px;border-radius:99px;border:none;cursor:pointer;font-family:inherit;font-size:14px;font-weight:600;transition:opacity .12s}
-.hdr-btn:active{opacity:.7}
-.hdr-btn.primary{background:var(--accent);color:#fff}
-.hdr-btn.ghost{background:var(--surface2);color:var(--text2)}
-
-/* ===== ADMIN ===== */
-#admin{background:var(--bg)}
-#admin-tabs{display:flex;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0}
-.atab{flex:1;padding:10px;font-size:13px;font-weight:500;color:var(--text2);border:none;background:none;cursor:pointer;font-family:inherit;position:relative;transition:color .15s}
-.atab.on{color:var(--accent);font-weight:600}
-.atab.on::after{content:'';position:absolute;bottom:0;left:20%;right:20%;height:2px;background:var(--accent);border-radius:2px}
-#admin-body{flex:1;overflow:hidden;position:relative}
-
-/* admin panels */
-.apanel{position:absolute;inset:0;overflow-y:auto;padding:20px;display:none}
-.apanel.on{display:block}
-#amap-panel{padding:0;display:none}
-#amap-panel.on{display:block}
-#admin-map{position:absolute;inset:0}
-
-.sec-label{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;margin-top:24px}
-.sec-label:first-child{margin-top:0}
-.card{background:var(--surface);border-radius:var(--r);border:1px solid var(--border);overflow:hidden;margin-bottom:0}
-.crow{display:flex;align-items:center;gap:12px;padding:13px 16px;border-bottom:1px solid var(--border)}
-.crow:last-child{border:none}
-.crow label{font-size:13px;color:var(--text2);min-width:68px;flex-shrink:0}
-.cinput{flex:1;border:none;outline:none;font-size:15px;font-family:inherit;color:var(--text);background:transparent;min-width:0}
-.cinput::placeholder{color:var(--text3)}
-
-/* member list */
-.mitem{display:flex;align-items:center;gap:11px;padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s}
-.mitem:last-child{border:none}
-.mitem:active{background:var(--surface2)}
-.mbar{width:4px;height:38px;border-radius:2px;flex-shrink:0}
-.minfo{flex:1;min-width:0}
-.mname{font-size:15px;font-weight:500}
-.marea{font-size:11px;color:var(--text2);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.mdel{width:28px;height:28px;border-radius:50%;border:none;background:var(--surface2);color:var(--red);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.mdel:active{background:#fee2e2}
-.add-btn{width:100%;padding:13px;border-radius:var(--r);border:1.5px dashed var(--border2);background:transparent;color:var(--accent);font-size:14px;font-weight:500;cursor:pointer;font-family:inherit;margin-top:10px;transition:background .1s}
-.add-btn:active{background:var(--surface)}
-
-/* saved sessions */
-.sitem{display:flex;align-items:center;gap:12px;padding:13px 16px;border-bottom:1px solid var(--border);cursor:pointer}
-.sitem:last-child{border:none}
-.sitem:active{background:var(--surface2)}
-.sicon{width:40px;height:40px;border-radius:10px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
-.sinfo{flex:1;min-width:0}
-.sname{font-size:15px;font-weight:600}
-.smeta{font-size:11px;color:var(--text2);margin-top:2px}
-.sdel{padding:5px 11px;border-radius:99px;border:none;background:#fff1f0;color:var(--red);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;flex-shrink:0}
-.sarr{color:var(--text3);font-size:18px;flex-shrink:0}
-
-/* map toolbar */
-#map-toolbar{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:1000;display:flex;gap:6px;flex-wrap:wrap;justify-content:center;padding:0 12px}
-.mtool{padding:7px 14px;border-radius:99px;border:none;background:rgba(255,255,255,.95);color:var(--text);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:var(--sh);backdrop-filter:blur(8px);white-space:nowrap}
-.mtool.active{background:var(--accent);color:#fff}
-.mtool:active{opacity:.8}
-
-/* member select for map */
-#member-select-bar{position:absolute;bottom:20px;left:16px;right:16px;z-index:1000;background:rgba(255,255,255,.96);border-radius:var(--r);padding:12px 16px;box-shadow:var(--sh2);backdrop-filter:blur(12px)}
-#member-select-bar h4{font-size:12px;color:var(--text2);margin-bottom:10px;font-weight:500}
-#member-btns{display:flex;gap:8px;flex-wrap:wrap}
-.mbtn{padding:7px 14px;border-radius:99px;border:2px solid;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;background:transparent;transition:all .12s}
-.mbtn.sel{color:#fff!important}
-.mbtn:active{opacity:.8}
-
-/* ===== STAFF ===== */
-#staff{background:var(--bg)}
-#picker-overlay{position:absolute;inset:0;z-index:500;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px)}
-#picker-sheet{background:var(--surface);border-radius:22px 22px 0 0;width:100%;max-width:480px;padding:20px 20px 44px;animation:slideUp .3s cubic-bezier(.32,.72,0,1)}
-@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
-.ph{width:36px;height:4px;border-radius:2px;background:var(--border2);margin:0 auto 20px}
-.pt{font-size:20px;font-weight:700;letter-spacing:-.02em;margin-bottom:4px}
-.ps{font-size:13px;color:var(--text2);margin-bottom:20px}
-.pbtn{display:flex;align-items:center;gap:14px;width:100%;padding:14px 16px;border-radius:var(--r);border:1.5px solid var(--border);background:var(--surface);cursor:pointer;text-align:left;font-family:inherit;margin-bottom:9px;transition:transform .1s}
-.pbtn:last-child{margin-bottom:0}
-.pbtn:active{transform:scale(.98)}
-.pdot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
-.pname{font-size:16px;font-weight:600}
-.pdetail{font-size:11px;color:var(--text2);margin-top:2px}
-.parr{color:var(--text3);font-size:20px;margin-left:auto}
-
-/* staff main */
-#staff-hdr{
-  background:rgba(255,255,255,0.92);
-  backdrop-filter:saturate(180%) blur(20px);
-  -webkit-backdrop-filter:saturate(180%) blur(20px);
-  border-bottom:0.5px solid rgba(0,0,0,0.1);
-  height:54px;display:flex;align-items:center;
-  padding:0 16px;gap:10px;flex-shrink:0;z-index:100;
-}
-.s-title{font-size:15px;font-weight:600;flex:1;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#sync-dot{width:8px;height:8px;border-radius:50%;background:var(--text3);transition:background .3s;flex-shrink:0}
-#sync-dot.ok{background:var(--green)}
-#sync-dot.err{background:var(--red)}
-#s-badge{font-size:12px;font-weight:600;color:var(--text2)}
-
-#rbar{
-  display:flex;
-  background:rgba(255,255,255,0.92);
-  backdrop-filter:saturate(180%) blur(20px);
-  -webkit-backdrop-filter:saturate(180%) blur(20px);
-  border-bottom:0.5px solid rgba(0,0,0,0.1);
-  flex-shrink:0;overflow-x:auto;
-}
-#rbar::-webkit-scrollbar{display:none}
-.rb{
-  flex:1;min-width:72px;padding:8px 4px 10px;text-align:center;cursor:pointer;
-  border-right:0.5px solid rgba(0,0,0,0.08);
-  transition:background .12s;overflow:hidden;
-  position:relative;
-}
-.rb:last-child{border-right:none}
-.rb.me{background:rgba(0,113,227,0.06)}
-.rn{
-  font-size:22px;font-weight:700;display:block;
-  letter-spacing:-.03em;line-height:1;margin-bottom:2px;
-}
-.rl{
-  font-size:9px;font-weight:600;letter-spacing:.02em;
-  color:rgba(60,60,67,0.6);display:block;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 3px;
-  text-transform:none;
-}
-
-#s-map{position:absolute;left:0;right:0}
-#s-bot{
-  position:absolute;bottom:0;left:0;right:0;
-  background:rgba(255,255,255,0.92);
-  backdrop-filter:saturate(180%) blur(20px);
-  -webkit-backdrop-filter:saturate(180%) blur(20px);
-  border-top:0.5px solid rgba(0,0,0,0.12);
-  height:calc(72px + env(safe-area-inset-bottom,0px));
-  display:flex;align-items:flex-start;
-  padding-top:8px;
-  z-index:100;
-}
-.sbb{
-  flex:1;height:auto;border:none;background:none;
-  font-size:10px;font-weight:500;letter-spacing:.01em;
-  color:#3c3c43;cursor:pointer;
-  display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
-  gap:4px;padding:0 0 2px;
-  font-family:inherit;transition:opacity .15s;
-}
-.sbb:active{opacity:.4}
-.sbb i{font-size:22px;line-height:1;font-style:normal}
-.sbb:active{background:var(--surface2)}
-.sbsep{width:0.5px;height:32px;background:rgba(0,0,0,0.1)}
-.sbb svg{width:24px;height:24px;color:#3c3c43;opacity:0.8}
-/* ポップアップ幅をスマホに合わせて制御 */
-.leaflet-popup-content-wrapper{
-  border-radius:14px !important;
-  box-shadow:0 4px 24px rgba(0,0,0,.15) !important;
-  max-width:calc(100vw - 40px) !important;
-}
-.leaflet-popup-content{
-  margin:0 !important;
-  width:auto !important;
-  max-width:calc(100vw - 60px) !important;
-}
-.sbb:active svg{opacity:0.4}
-
-#gps-btn{
-  position:absolute;right:14px;z-index:200;
-  width:44px;height:44px;border-radius:50%;
-  background:rgba(255,255,255,0.95);
-  border:none;
-  box-shadow:0 2px 12px rgba(0,0,0,.15),0 0 0 0.5px rgba(0,0,0,.08);
-  display:flex;align-items:center;justify-content:center;
-  font-size:20px;cursor:pointer;font-style:normal;
-  backdrop-filter:blur(10px);
-  -webkit-backdrop-filter:blur(10px);
-  transition:transform .12s,opacity .12s;
-}
-#gps-btn:active{transform:scale(.92);opacity:.8}
-#gps-btn:active{background:var(--surface2)}
-#s-hint{
-  position:absolute;z-index:200;left:50%;transform:translateX(-50%);
-  background:rgba(0,0,0,0.75);color:#fff;
-  padding:8px 20px;border-radius:99px;
-  font-size:12px;font-weight:500;letter-spacing:.01em;
-  white-space:nowrap;pointer-events:none;
-  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
-  transition:opacity .6s;box-shadow:0 2px 12px rgba(0,0,0,.2);
-}
-#s-leg{
-  position:absolute;left:12px;z-index:199;
-  background:rgba(255,255,255,0.85);
-  backdrop-filter:saturate(180%) blur(20px);
-  -webkit-backdrop-filter:saturate(180%) blur(20px);
-  border-radius:12px;padding:8px 12px;font-size:10px;
-  border:0.5px solid rgba(0,0,0,0.1);
-  box-shadow:0 2px 8px rgba(0,0,0,.08);
-  line-height:2;font-weight:500;
-}
-.lr{display:flex;align-items:center;gap:6px}
-.ld{width:16px;height:3px;border-radius:2px;flex-shrink:0}
-
-/* ===== MODALS ===== */
-.mbg{display:none;position:absolute;inset:0;z-index:5000;background:rgba(0,0,0,.42);align-items:center;justify-content:center;backdrop-filter:blur(4px)}
-.mbg.on{display:flex}
-.mbox{background:var(--surface);border-radius:20px;padding:24px;width:88%;max-width:360px;box-shadow:var(--sh2);animation:popIn .22s cubic-bezier(.32,.72,0,1)}
-@keyframes popIn{from{transform:scale(.92);opacity:0}to{transform:scale(1);opacity:1}}
-.mt{font-size:18px;font-weight:700;margin-bottom:6px;letter-spacing:-.02em}
-.ms{font-size:13px;color:var(--text2);margin-bottom:18px;line-height:1.5}
-.mi{width:100%;padding:12px 14px;border-radius:var(--r2);border:1.5px solid var(--border2);font-size:15px;font-family:inherit;outline:none;margin-bottom:10px;transition:border-color .15s;color:var(--text)}
-.mi:focus{border-color:var(--accent)}
-.mrow{display:flex;gap:10px}
-.mbtn{flex:1;padding:13px;border-radius:var(--r2);border:none;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;transition:opacity .12s}
-.mbtn:active{opacity:.7}
-.mbtn.p{background:var(--accent);color:#fff}
-.mbtn.g{background:var(--surface2);color:var(--text)}
-.mbtn.d{background:#fff1f0;color:var(--red)}
-
-/* color picker */
-.cdots{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:16px}
-.cdot{width:28px;height:28px;border-radius:50%;cursor:pointer;border:2.5px solid transparent;transition:transform .12s}
-.cdot.on{border-color:var(--text);transform:scale(1.18)}
-
-/* transport */
-.trow{display:flex;gap:8px;margin-bottom:14px}
-.tbtn{flex:1;padding:10px 6px;border-radius:var(--r2);border:1.5px solid var(--border2);background:var(--surface2);color:var(--text2);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;text-align:center;transition:all .12s}
-.tbtn.on{background:var(--accent);color:#fff;border-color:var(--accent)}
-
-/* stat modal */
-.srow{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)}
-.srow:last-child{border:none}
-.sdot2{width:10px;height:10px;border-radius:50%;margin-right:7px;flex-shrink:0}
-.sname2{display:flex;align-items:center;font-size:14px}
-.sbig{font-size:48px;font-weight:700;text-align:center;letter-spacing:-.04em;margin-bottom:4px}
-.ssub{font-size:13px;color:var(--text2);text-align:center;margin-bottom:18px}
-
-/* loading overlay */
-#loading{display:none;position:absolute;inset:0;z-index:9000;background:rgba(255,255,255,.9);align-items:center;justify-content:center;flex-direction:column;gap:16px;backdrop-filter:blur(8px)}
-#loading.on{display:flex}
-#loading p{font-size:15px;color:var(--text2)}
-.spin{width:36px;height:36px;border:3px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
+<div class="wrap">
 
-<!-- LOADING -->
-<div id="loading"><div class="spin"></div><p id="load-msg">読み込み中...</p></div>
+<header>
+  <h1>移動費見積り</h1>
+  <button class="icon-btn" id="btnSettings" title="設定・接続診断">⚙</button>
+</header>
 
-<!-- TOP -->
-<div id="top" class="screen active">
-  <div class="top-logo">PostingMap</div>
-  <h1 class="top-title">ポスティング</h1>
-  <p class="top-sub">エリアを設定して<br>チームで効率よく配布</p>
-  <div class="top-btns">
-    <button class="top-btn a" onclick="goAdmin()">⚙️ 管理者モード</button>
-    <button class="top-btn b" onclick="goStaff()">📮 スタッフとして参加</button>
+<!-- 出発地 -->
+<div class="block">
+  <div class="label">出発地</div>
+  <div class="field">
+    <div class="row">
+      <input type="text" id="inOrigin" placeholder="住所・駅名・施設名" autocomplete="off">
+      <button class="mini-btn" id="btnGps" title="現在地">現在地</button>
+      <button class="mini-btn" id="btnFavO" title="お気に入り">★</button>
+    </div>
+    <div class="cand" id="candOrigin"></div>
+    <div class="status wait" id="stOrigin"><span class="dot"></span><span>未確定</span></div>
   </div>
 </div>
 
-<!-- ADMIN -->
-<div id="admin" class="screen">
-  <div class="hdr">
-    <button class="hdr-back" onclick="goTop()">←</button>
-    <div class="hdr-title" id="admin-title">管理者設定</div>
-    <button class="hdr-btn ghost" onclick="newSession()" style="font-size:13px">＋新規</button>
-    <button class="hdr-btn primary" id="save-btn" onclick="saveSession()">保存</button>
-  </div>
-  <div id="admin-tabs">
-    <button class="atab on" onclick="aTab('info')">📋 基本設定</button>
-    <button class="atab" onclick="aTab('map')">🗺 エリア設定</button>
-    <button class="atab" onclick="aTab('sessions')">📂 保存済み</button>
-  </div>
-  <div id="admin-body">
-    <!-- info panel -->
-    <div class="apanel on" id="apanel-info">
-      <div class="sec-label">セッション情報</div>
-      <div class="card">
-        <div class="crow"><label>タイトル</label><input class="cinput" id="f-title" placeholder="例: 川越市2024年6月" maxlength="40"></div>
-        <div class="crow"><label>日付</label><input class="cinput" id="f-date" type="date"></div>
-        <div class="crow"><label>合計枚数</label><input class="cinput" id="f-total" type="number" placeholder="例: 1000" min="1"></div>
-      </div>
-      <div class="sec-label" style="margin-top:20px">担当メンバー</div>
-      <div class="card" id="m-list"></div>
-      <button class="add-btn" onclick="openAddMember()">＋ メンバーを追加</button>
+<!-- 訪問先 -->
+<div class="block">
+  <div class="label">訪問先</div>
+  <div class="field">
+    <div class="row">
+      <input type="text" id="inDest" placeholder="住所・駅名・施設名" autocomplete="off">
+      <button class="mini-btn" id="btnFavD" title="お気に入り">★</button>
     </div>
-    <!-- map panel -->
-    <div id="amap-panel">
-      <div id="admin-map"></div>
-      <div id="map-toolbar">
-        <button class="mtool" id="tool-rect" onclick="activateDraw('rect')">⬜ 四角形を描く</button>
-        <button class="mtool" id="tool-poly" onclick="activateDraw('poly')">🔷 多角形を描く</button>
-        <button class="mtool" id="tool-clear" onclick="clearSelectedArea()">🗑 選択エリア削除</button>
-        <button class="mtool active" id="tool-past" onclick="togglePastAreas()">🗺 過去配布エリア表示中</button>
-      </div>
-      <div style="position:absolute;left:10px;top:60px;z-index:999;background:rgba(255,255,255,.92);border-radius:8px;padding:6px 10px;font-size:10px;color:#666;box-shadow:0 1px 6px rgba(0,0,0,.1)">
-        <span style="display:inline-block;width:14px;height:8px;background:#555;opacity:.7;border:1.5px dashed #333;vertical-align:middle;margin-right:5px"></span><b>過去配布エリア（重複注意）</b>
-      </div>
-      <div id="member-select-bar">
-        <h4>担当メンバーを選んでからエリアを描いてください</h4>
-        <div id="member-btns"></div>
-      </div>
-    </div>
-    <!-- sessions panel -->
-    <div class="apanel" id="apanel-sessions">
-      <div class="sec-label">保存済みセッション</div>
-      <div class="card" id="sess-list"></div>
-    </div>
+    <div class="cand" id="candDest"></div>
+    <div class="status wait" id="stDest"><span class="dot"></span><span>未確定</span></div>
   </div>
 </div>
 
-<!-- STAFF -->
-<div id="staff" class="screen">
-  <!-- picker -->
-  <div id="picker-overlay">
-    <div id="picker-sheet">
-      <div class="ph"></div>
-      <div class="pt">担当者を選ぶ</div>
-      <div class="ps" id="picker-sess-name">読み込み中...</div>
-      <div id="picker-grid"></div>
-      <div id="picker-no-sess" style="display:none;text-align:center;padding:20px;color:var(--text2);font-size:14px">
-        📋 管理者がセッションを作成するまでお待ちください
-      </div>
-    </div>
-  </div>
-  <!-- main -->
-  <div id="staff-hdr">
-    <button style="width:32px;height:32px;border-radius:50%;border:none;background:var(--surface2);cursor:pointer;font-size:16px" onclick="showPicker()">←</button>
-    <div class="s-title" id="s-title">PostingMap</div>
-    <div id="sync-dot" onclick="showSyncDebug()" style="width:8px;height:8px;border-radius:50%;background:#aeaeb2;transition:background .3s;flex-shrink:0;cursor:pointer"></div>
-    <div id="s-badge" style="margin-left:6px;font-size:12px;font-weight:600;color:rgba(60,60,67,0.6);background:rgba(0,0,0,0.05);padding:3px 10px;border-radius:99px">0/0</div>
-    <div id="apt-badge" style="margin-left:4px;font-size:11px;font-weight:600;color:#15803d;background:#f0fdf4;padding:3px 8px;border-radius:99px;display:none"></div>
-  </div>
-  <div id="rbar"></div>
-  <div id="s-map"></div>
-  <i id="gps-btn" onclick="centerGPS()">🎯</i>
-  <div id="s-hint">タップして配布済みマーク</div>
-<div id="add-apt-hint" style="display:none;position:absolute;z-index:201;left:50%;transform:translateX(-50%);background:#ff9500;color:#fff;padding:8px 20px;border-radius:99px;font-size:12px;font-weight:700;white-space:nowrap;pointer-events:none;box-shadow:0 2px 12px rgba(255,149,0,.4)">
-  🏢 追加したい場所をタップ　　キャンセルは再度ボタンを押す
-</div>
-  <div id="s-leg">
-    <div class="lr"><div class="ld" style="background:#22c55e"></div>配布済み</div>
-    <div class="lr" id="past-leg-toggle" onclick="toggleStaffPastZones()" style="cursor:pointer;padding:1px 0">
-      <div class="ld" id="past-leg-dot" style="background:#555;opacity:.7;border:1px dashed #333"></div>
-      <span id="past-leg-label">前回配布エリア/ピン</span> <span style="font-size:9px;color:#aaa">タップで切替</span>
-    </div>
-    <div class="lr"><span style="font-size:11px">🏢</span>集合住宅</div>
-    <div class="lr"><span style="font-size:11px">🏭</span>会社(拡大時)</div>
-  </div>
-  <div id="s-bot">
-    <button class="sbb" onclick="showStat()">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect x="3" y="12" width="4" height="9" rx="1" fill="currentColor"/><rect x="10" y="7" width="4" height="14" rx="1" fill="currentColor"/><rect x="17" y="3" width="4" height="18" rx="1" fill="currentColor"/></svg>
-      進捗
-    </button>
-    <div class="sbsep"></div>
-    <button class="sbb" onclick="showAptSheet()">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/><path d="M9 22V12h6v10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M3 9h18" stroke="currentColor" stroke-width="2"/></svg>
-      集合住宅
-    </button>
-    <div class="sbsep"></div>
-    <button class="sbb" onclick="undoLast()">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M9 14L4 9l5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 9h10a6 6 0 0 1 0 12h-1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-      戻す
-    </button>
-    <div class="sbsep"></div>
-    <button class="sbb" onclick="centerGPS()">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" fill="currentColor"/><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="2"/><line x1="12" y1="2" x2="12" y2="5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="19" x2="12" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="2" y1="12" x2="5" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="19" y1="12" x2="22" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-      現在地
-    </button>
-    <div class="sbsep"></div>
-    <button class="sbb" id="add-apt-btn" onclick="toggleAddAptMode()">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-        <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/>
-        <path d="M9 22V12h6v10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        <path d="M3 9h18" stroke="currentColor" stroke-width="2"/>
-        <circle cx="19" cy="5" r="4" fill="currentColor"/>
-        <path d="M19 3v4M17 5h4" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
-      </svg>
-      集合住宅追加
-    </button>
-    <div class="sbsep"></div>
-    <button class="sbb" onclick="resetMy()">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><polyline points="3 6 5 6 21 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M19 6l-1 14H6L5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-      リセット
-    </button>
+<!-- 交通手段 -->
+<div class="block">
+  <div class="tabs" id="modeTabs">
+    <button class="tab on" data-mode="car">車</button>
+    <button class="tab" data-mode="transit">電車</button>
+    <button class="tab" data-mode="walk">徒歩</button>
+    <button class="tab" data-mode="bike">自転車</button>
   </div>
 </div>
 
-<!-- MODALS -->
-<!-- add member -->
-<div class="mbg" id="m-add-modal">
-  <div class="mbox">
-    <div class="mt" id="m-add-title">メンバーを追加</div>
-    <div class="ms">名前・移動手段・カラーを設定</div>
-    <input class="mi" id="nm-name" placeholder="例: 田中さん" maxlength="20">
-    <div class="trow">
-      <button class="tbtn on" id="t-car" onclick="selTransport('car')">🚗 車</button>
-      <button class="tbtn" id="t-bike" onclick="selTransport('bike')">🚲 自転車</button>
-      <button class="tbtn" id="t-walk" onclick="selTransport('walk')">🚶 徒歩</button>
-    </div>
-    <div class="cdots" id="color-dots"></div>
-    <div class="mrow">
-      <button class="mbtn g" onclick="closeAddMember()">キャンセル</button>
-      <button class="mbtn p" onclick="confirmAddMember()">追加</button>
-    </div>
+<!-- 設定 -->
+<div class="block">
+  <button class="acc-head" id="accVehicle"><span>車両・経費設定</span><span class="arw">›</span></button>
+  <div class="acc-body" id="accVehicleBody">
+    <div class="frow"><label>燃費 (km/L)</label><input type="number" id="cfgEff" step="0.1" min="1" value="12"></div>
+    <div class="frow"><label>ガソリン単価 (円/L)</label><input type="number" id="cfgPrice" step="1" min="1" value="175"></div>
+    <div class="frow"><label>会社規定 (円/km)</label><input type="number" id="cfgRate" step="1" min="0" placeholder="任意"></div>
+    <div class="chk"><input type="checkbox" id="cfgRound" checked><label for="cfgRound">往復で計算する</label></div>
+    <div class="chk"><input type="checkbox" id="cfgAvoidToll"><label for="cfgAvoidToll">高速道路を使わないルートで検索</label></div>
+  </div>
+
+  <button class="acc-head" id="accManual"><span>距離を手入力する（API不調時）</span><span class="arw">›</span></button>
+  <div class="acc-body" id="accManualBody">
+    <div class="frow"><label>片道距離 (km)</label><input type="number" id="manDist" step="0.1" min="0" placeholder="例 16.4"></div>
+    <div class="frow"><label>片道所要 (分)</label><input type="number" id="manMin" step="1" min="0" placeholder="例 35"></div>
+    <button class="act" id="btnManual" style="width:100%">この距離で計算する</button>
+    <div class="note">検索が失敗する場合や、実際の走行距離が分かっている場合はこちらから直接計算できます。住所の確定は不要です。</div>
   </div>
 </div>
-<!-- stat -->
-<!-- 集合住宅追加モーダル -->
-<div class="mbg" id="add-apt-modal">
-  <div class="mbox">
-    <div class="mt">🏢 集合住宅を追加</div>
-    <div class="ms">名前・枚数・担当者を入力してください</div>
-    <input class="mi" id="new-apt-name" placeholder="例: ○○団地 A棟" maxlength="30">
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
-      <label style="font-size:13px;font-weight:600;color:#555;white-space:nowrap;flex-shrink:0">目安戸数</label>
-      <input class="mi" id="new-apt-units" type="number" placeholder="例: 50" min="1" style="margin-bottom:0;flex:1">
-      <label style="font-size:13px;font-weight:600;color:#555;white-space:nowrap;flex-shrink:0">配布枚数</label>
-      <input class="mi" id="new-apt-qty" type="number" placeholder="例: 50" min="1" style="margin-bottom:0;flex:1">
+
+<div class="block">
+  <button class="btn" id="btnSearch"><span class="spin"></span><span id="btnSearchTxt">ルートを検索</span></button>
+</div>
+
+<div id="map"></div>
+
+<!-- 結果 -->
+<div id="result"></div>
+
+<!-- 履歴・お気に入り -->
+<div class="block">
+  <div class="tabs" id="listTabs">
+    <button class="tab on" data-list="hist">履歴</button>
+    <button class="tab" data-list="fav">お気に入り</button>
+  </div>
+  <div id="listBody" style="margin-top:16px"></div>
+  <div class="acts" id="listActs" style="display:none">
+    <button class="act" id="btnCsv">CSV出力</button>
+    <button class="act" id="btnClearHist">履歴を全消去</button>
+  </div>
+</div>
+
+</div>
+
+<!-- 設定モーダル -->
+<div class="modal" id="mdSettings">
+  <div class="modal-in">
+    <div class="modal-h"><span>設定・接続診断</span><button class="modal-x" data-close="mdSettings">✕</button></div>
+
+    <div class="label">接続診断</div>
+    <div class="diag" id="diagBox">
+      <div class="diag-row"><span>国土地理院 住所検索</span><span class="diag-wait" id="dgGsi">未実行</span></div>
+      <div class="diag-row"><span>Nominatim 検索</span><span class="diag-wait" id="dgNom">未実行</span></div>
+      <div class="diag-row"><span>OSRM ルート探索</span><span class="diag-wait" id="dgOsrm">未実行</span></div>
+      <div class="diag-row"><span>地図タイル / Leaflet</span><span class="diag-wait" id="dgLeaf">未実行</span></div>
     </div>
-    <div style="font-size:12px;font-weight:600;color:#555;margin-bottom:8px">配った人</div>
-    <div id="new-apt-member-sel" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px"></div>
-    <div class="mrow">
-      <button class="mbtn g" onclick="closeAddAptModal()">キャンセル</button>
-      <button class="mbtn p" id="new-apt-ok-btn">✓ 追加する</button>
+    <button class="act" id="btnDiag" style="width:100%">診断を実行</button>
+    <div class="note" id="diagNote"></div>
+
+    <div class="sep"></div>
+    <div class="note">
+      本ツールは国土地理院API・OpenStreetMap・OSRM を利用しています（APIキー不要・無料）。<br>
+      高速料金と電車運賃は自動取得せず、外部サイトで確認して手入力する方式です。<br>
+      公開APIは低頻度利用を前提としています。連続した大量検索は避けてください。
+    </div>
+    <div class="modal-f"><button class="modal-b" data-close="mdSettings">閉じる</button></div>
+  </div>
+</div>
+
+<!-- お気に入り選択 -->
+<div class="modal" id="mdFav">
+  <div class="modal-in">
+    <div class="modal-h"><span id="mdFavTitle">お気に入り</span><button class="modal-x" data-close="mdFav">✕</button></div>
+    <div id="mdFavList"></div>
+    <div class="modal-f"><button class="modal-b" data-close="mdFav">閉じる</button></div>
+  </div>
+</div>
+
+<!-- お気に入り登録 -->
+<div class="modal" id="mdAddFav">
+  <div class="modal-in">
+    <div class="modal-h"><span>お気に入りに登録</span><button class="modal-x" data-close="mdAddFav">✕</button></div>
+    <div class="frow" style="display:block"><label style="display:block;margin-bottom:6px">表示名</label><input type="text" id="favLabel" placeholder="例：〇〇工務店"></div>
+    <div class="frow" style="display:block;margin-top:12px"><label style="display:block;margin-bottom:6px">住所</label><input type="text" id="favAddr" readonly></div>
+    <div class="modal-f">
+      <button class="modal-b pri" id="btnSaveFav">登録</button>
+      <button class="modal-b" data-close="mdAddFav">キャンセル</button>
     </div>
   </div>
 </div>
 
-<!-- 集合住宅シート -->
-<div class="mbg" id="apt-sheet" onclick="closeAptSheet()">
-  <div onclick="event.stopPropagation()" style="background:#fff;border-radius:22px 22px 0 0;position:absolute;bottom:0;left:0;right:0;max-height:75vh;display:flex;flex-direction:column">
-    <div style="padding:16px 20px 0">
-      <div style="width:36px;height:4px;border-radius:2px;background:#e0e0e0;margin:0 auto 16px"></div>
-      <div style="font-size:18px;font-weight:700;letter-spacing:-.02em;margin-bottom:4px">🏢 集合住宅一覧</div>
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-      <div style="font-size:13px;color:#888">タップして地図移動 → ナビで案内</div>
-      <button onclick="osmAptFetched=false;fetchOsmApartments();closeAptSheet();" style="padding:5px 12px;border-radius:99px;border:1px solid #ddd;background:#fff;font-size:11px;font-weight:600;color:#0071e3;cursor:pointer;font-family:inherit">🔄 地図から再取得</button>
-    </div>
-    </div>
-    <div style="overflow-y:auto;padding:0 16px 40px" id="apt-list-inner"></div>
-  </div>
-</div>
+<div class="toast" id="toast"></div>
 
-<div class="mbg" id="stat-modal" onclick="closeStat()">
-  <div class="mbox" onclick="event.stopPropagation()">
-    <div class="mt">📊 進捗レポート</div>
-    <div class="sbig" id="stat-pct">0%</div>
-    <div class="ssub" id="stat-sub">集計中...</div>
-    <div id="stat-rows"></div>
-    <button class="mbtn g" style="width:100%;margin-top:14px" onclick="closeStat()">閉じる</button>
-  </div>
-</div>
-<!-- confirm -->
-<div class="mbg" id="confirm-modal">
-  <div class="mbox">
-    <div class="mt" id="cf-title">確認</div>
-    <div class="ms" id="cf-msg">よろしいですか？</div>
-    <div class="mrow">
-      <button class="mbtn g" id="cf-cancel-btn">キャンセル</button>
-      <button class="mbtn d" id="cf-ok-btn">削除</button>
-    </div>
-  </div>
-</div>
-<!-- member edit -->
-<div class="mbg" id="m-edit-modal">
-  <div class="mbox">
-    <div class="mt">メンバーを編集</div>
-    <div class="ms">名前・移動手段・枚数を変更できます</div>
-    <input class="mi" id="em-name" placeholder="名前" maxlength="20">
-    <div class="trow">
-      <button class="tbtn" id="et-car" onclick="selEditTransport('car')">🚗 車</button>
-      <button class="tbtn" id="et-bike" onclick="selEditTransport('bike')">🚲 自転車</button>
-      <button class="tbtn" id="et-walk" onclick="selEditTransport('walk')">🚶 徒歩</button>
-    </div>
-    <input class="mi" id="em-target" type="number" placeholder="目標枚数（空欄で自動計算）" min="0">
-    <div class="mrow">
-      <button class="mbtn g" onclick="closeEditMember()">キャンセル</button>
-      <button class="mbtn p" onclick="confirmEditMember()">保存</button>
-    </div>
-  </div>
-</div>
-
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-// ============================================================
-// Supabase
-// ============================================================
-const SB = 'https://efznjrngolysrdxnmurp.supabase.co';
-const KEY = 'sb_publishable_kVLg2QozDdBIcLGcpvZwcw_VXwGyFrD';
-
-async function api(path, opt = {}) {
-  const r = await fetch(`${SB}/rest/v1/${path}`, {
-    headers: {
-      'apikey': KEY,
-      'Content-Type': 'application/json',
-      'Prefer': opt.prefer || 'return=minimal',
-      ...opt.headers
-    }, ...opt
-  });
-  if (opt.json) return r.ok ? r.json() : [];
-  return r;
-}
-
-// ============================================================
-// Constants
-// ============================================================
-const COLORS = ['#e53e3e','#c05621','#d69e2e','#276749','#2b6cb0','#553c9a','#b83280','#2c7a7b','#744210','#1a365d'];
-const TI = { car:'🚗', bike:'🚲', walk:'🚶' };
-
-// ── 集合住宅データ（固定） ──────────────────────────────
-const APARTMENTS = [
-  { id:'apt0', name:'県営川越久下戸住宅', addr:'埼玉県川越市久下戸1-1',    lat:35.904626, lng:139.526422, units:212, defaultQty:212 },
-  { id:'apt1', name:'並木7-22住宅',       addr:'埼玉県川越市並木7-22',     lat:35.904987, lng:139.517090, units:50,  defaultQty:50  },
-  { id:'apt2', name:'並木88-4住宅',       addr:'埼玉県川越市並木88-4',     lat:35.903728, lng:139.517126, units:30,  defaultQty:30  },
-  { id:'apt3', name:'南古谷39-2住宅',     addr:'埼玉県川越市南古谷39-2',   lat:35.904512, lng:139.520019, units:40,  defaultQty:40  },
-  { id:'apt4', name:'並木新町18-8住宅',   addr:'埼玉県川越市並木新町18-8', lat:35.900929, lng:139.516758, units:30,  defaultQty:30  },
-];
-// 集合住宅配布記録: { aptId -> { qty, done, memberId, memberName, ts } }
-let aptRecords = {};
-// 動的に追加された集合住宅: [{id, name, addr, lat, lng, units, defaultQty, dynamic:true}]
-let dynamicApts = [];
-// 追加モード
-let addAptMode = false;
-let pendingAptLatlng = null;
-let newAptSelectedMemberId = '';
-let newAptSelectedMemberName = '';
-
-// ============================================================
-// State
-// ============================================================
-let sessions = [];
-let cur = null; // 現在編集中のセッション
-let editMembers = []; // 編集中のメンバー配列
-
-// admin map
-let amap = null;
-let drawHandler = null;
-let selectedMemberId = null;
-let zoneLayerGroup = null;
-let pastAreaLayerGroup = null;
-let showPastAreas = true;
-
-// staff
-let smap = null;
-let myIdx = -1;
-let sMarkers = [];
-let sZones = [];
-let sPastZones = []; // 過去配布エリアレイヤー
-let sPastMarkers = []; // 過去配布済みピンレイヤー
-let sBizLayers = [], sBizFetched = {};
-let gpsM = null, gpsC = null, gpsH = null;
-let otherGps = {};
-let isTouching = false;
-let history = [];
-let syncTmr = null;
-let lastSyncTime = null;
-
-// modal state
-let nmTransport = 'car', nmColor = COLORS[0];
-let emTransport = 'car', emIdx = -1;
-let confirmCb = null;
-
-// ============================================================
-// Loading
-// ============================================================
-function loading(show, msg = '読み込み中...') {
-  document.getElementById('loading').classList.toggle('on', show);
-  document.getElementById('load-msg').textContent = msg;
-}
-
-// ============================================================
-// Screen navigation
-// ============================================================
-function showScreen(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-}
-
-async function goTop() { showScreen('top'); }
-
-async function goAdmin() {
-  showScreen('admin');
-  loading(true, 'セッションを読み込み中...');
-  await fetchSessions();
-  loading(false);
-  newSession();
-}
-
-async function goStaff() {
-  showScreen('staff');
-  showPicker();
-  loading(true, 'セッションを読み込み中...');
-  await fetchSessions();
-  loading(false);
-  renderPickerGrid();
-}
-
-// ============================================================
-// Supabase: Sessions CRUD
-// ============================================================
-async function fetchSessions() {
-  try {
-    const r = await fetch(`${SB}/rest/v1/posting_sessions?select=*&order=updated_at.desc`, {
-      headers: { 'apikey': KEY, 'Content-Type': 'application/json' }
-    });
-    if (!r.ok) { console.error('fetchSessions失敗:', r.status); return; }
-    const data = await r.json();
-    if (Array.isArray(data)) {
-      sessions = data.map(row => ({
-        ...JSON.parse(row.config),
-        _sbId: row.id,
-        _updatedAt: row.updated_at
-      }));
-    }
-  } catch(e) { console.error('fetch sessions:', e); }
-}
-
-async function upsertSession(sess) {
-  const body = {
-    session_key: sess.id,
-    config: JSON.stringify(sess),
-    title: sess.title || '無題'
-  };
-
-  // まず既存レコードがあるか確認
-  const checkR = await fetch(`${SB}/rest/v1/posting_sessions?session_key=eq.${encodeURIComponent(sess.id)}&select=session_key`, {
-    headers: { 'apikey': KEY, 'Content-Type': 'application/json' }
-  });
-  const existing = checkR.ok ? await checkR.json() : [];
-
-  if (Array.isArray(existing) && existing.length > 0) {
-    // 既存あり → PATCHで更新
-    const r = await fetch(`${SB}/rest/v1/posting_sessions?session_key=eq.${encodeURIComponent(sess.id)}`, {
-      method: 'PATCH',
-      headers: {
-        'apikey': KEY,
-        'Content-Type': 'application/json',
-        'Prefer': 'return=minimal'
-      },
-      body: JSON.stringify(body)
-    });
-    if (!r.ok) {
-      const t = await r.text().catch(() => r.status + '');
-      throw new Error(`更新エラー(${r.status}): ${t}`);
-    }
-    return r;
-  } else {
-    // 既存なし → POSTで新規作成
-    const r = await fetch(`${SB}/rest/v1/posting_sessions`, {
-      method: 'POST',
-      headers: {
-        'apikey': KEY,
-        'Content-Type': 'application/json',
-        'Prefer': 'return=minimal'
-      },
-      body: JSON.stringify(body)
-    });
-    if (!r.ok) {
-      // 409（重複）が出た場合は念のためPATCHにフォールバック
-      if (r.status === 409) {
-        const r2 = await fetch(`${SB}/rest/v1/posting_sessions?session_key=eq.${encodeURIComponent(sess.id)}`, {
-          method: 'PATCH',
-          headers: {
-            'apikey': KEY,
-            'Content-Type': 'application/json',
-            'Prefer': 'return=minimal'
-          },
-          body: JSON.stringify(body)
-        });
-        if (!r2.ok) {
-          const t2 = await r2.text().catch(() => r2.status + '');
-          throw new Error(`更新エラー(${r2.status}): ${t2}`);
-        }
-        return r2;
-      }
-      const t = await r.text().catch(() => r.status + '');
-      throw new Error(`保存エラー(${r.status}): ${t}`);
-    }
-    return r;
-  }
-}
-
-async function deleteSession(sessId) {
-  return api(`posting_sessions?session_key=eq.${sessId}`, { method: 'DELETE' });
-}
-
-// ============================================================
-// Admin: new session
-// ============================================================
-function newSession() {
-  cur = {
-    id: 'sess_' + Date.now(),
-    title: '', date: new Date().toISOString().slice(0,10),
-    total: '', members: []
-  };
-  editMembers = [];
-  document.getElementById('f-title').value = '';
-  document.getElementById('f-date').value = cur.date;
-  document.getElementById('f-total').value = '';
-  document.getElementById('admin-title').textContent = '新規セッション';
-  renderMemberList();
-  aTab('info');
-  // マップの編集中エリアをクリア＋過去エリアを全件表示
-  if (amap && zoneLayerGroup) {
-    zoneLayerGroup.clearLayers();
-    drawPastAreas();
-  }
-}
-
-// ============================================================
-// Admin: load session for editing
-// ============================================================
-function loadSession(sess) {
-  cur = JSON.parse(JSON.stringify(sess));
-  editMembers = cur.members || [];
-  document.getElementById('f-title').value = cur.title || '';
-  document.getElementById('f-date').value = cur.date || '';
-  document.getElementById('f-total').value = cur.total || '';
-  document.getElementById('admin-title').textContent = cur.title || '編集中';
-  renderMemberList();
-  renderSessList();
-  aTab('info');
-  // マップにエリアを再描画
-  if (amap) {
-    zoneLayerGroup.clearLayers();
-    editMembers.forEach(m => { if (m.area) drawMemberZone(m); });
-    drawPastAreas(); // 編集中セッションを除外して再描画
-  }
-}
-
-// ============================================================
-// Admin: save
-// ============================================================
-async function saveSession() {
-  const title = document.getElementById('f-title').value.trim();
-  if (!title) { alert('タイトルを入力してください'); return; }
-  if (!editMembers.length) { alert('メンバーを1人以上追加してください'); return; }
-
-  const total = parseInt(document.getElementById('f-total').value) || 0;
-  const perM = total && editMembers.length ? Math.round(total / editMembers.length) : 0;
-
-  cur = {
-    ...cur,
-    title,
-    date: document.getElementById('f-date').value,
-    total,
-    members: editMembers.map(m => ({
-      ...m,
-      target: m.target || perM
-    }))
-  };
-
-  loading(true, '保存中...');
-  try {
-    const result = await upsertSession(cur);
-    if (result && result.ok === false) {
-      const errText = await result.text().catch(()=>'');
-      throw new Error(`HTTP ${result.status}: ${errText}`);
-    }
-    await fetchSessions();
-    renderSessList();
-    loading(false);
-    document.getElementById('admin-title').textContent = title;
-    alert(`「${title}」を保存しました ✓\nスタッフ側に即時反映されます。`);
-  } catch(e) {
-    loading(false);
-    console.error('保存エラー:', e);
-    alert('保存に失敗しました。\n\n' + e.message + '\n\nSupabaseの接続・テーブル設定を確認してください。');
-  }
-}
-
-// ============================================================
-// Admin: tabs
-// ============================================================
-function aTab(name) {
-  document.querySelectorAll('.atab').forEach((t,i) => t.classList.toggle('on', ['info','map','sessions'][i]===name));
-  document.getElementById('apanel-info').classList.toggle('on', name==='info');
-  document.getElementById('apanel-sessions').classList.toggle('on', name==='sessions');
-  const mp = document.getElementById('amap-panel');
-  mp.classList.toggle('on', name==='map');
-  if (name === 'map') {
-    if (!amap) initAdminMap();
-    else {
-      setTimeout(() => amap.invalidateSize(), 100);
-      drawPastAreas(); // タブ切替時にも最新セッション一覧を反映
-    }
-    renderMemberBtns();
-  }
-  if (name === 'sessions') renderSessList();
-}
-
-// ============================================================
-// Admin map
-// ============================================================
-function initAdminMap() {
-  amap = L.map('admin-map', { zoomControl: true, attributionControl: false });
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 20 }).addTo(amap);
-  amap.setView([35.910, 139.490], 13);
-
-  // 過去配布エリア（最背面・グレー斜線）
-  pastAreaLayerGroup = L.layerGroup().addTo(amap);
-  drawPastAreas();
-
-  // 現在編集中のエリア（前面）
-  zoneLayerGroup = L.layerGroup().addTo(amap);
-  editMembers.forEach(m => { if (m.area) drawMemberZone(m); });
-  renderMemberBtns();
-}
-
-// ── 過去配布エリアの描画 ──────────────────────────────────
-function drawPastAreas() {
-  if (!pastAreaLayerGroup) return;
-  pastAreaLayerGroup.clearLayers();
-  if (!showPastAreas) return;
-
-  // 現在編集中のセッション以外の、全保存済みセッションのエリアを集める
-  sessions.forEach(s => {
-    if (cur && s.id === cur.id) return; // 編集中の自分自身は除く
-    (s.members || []).forEach(m => {
-      if (!m.area) return;
-      const poly = L.polygon(m.area, {
-        color: '#444444',
-        fillColor: '#555555',
-        fillOpacity: 0.45,
-        weight: 2.5,
-        dashArray: '8 4',
-        interactive: true
-      });
-      // ラベル: セッション名・日付・担当者
-      const lats = m.area.map(c => c[0]), lngs = m.area.map(c => c[1]);
-      const clat = (Math.min(...lats) + Math.max(...lats)) / 2;
-      const clng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
-      const labelIcon = L.divIcon({
-        html: `<div style="background:#333333;color:#fff;border-radius:7px;padding:4px 10px;font-size:11px;font-weight:700;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.3);border:1.5px solid #fff">
-          🚫 配布済 ${s.date||''} ${TI[m.transport]||''}${m.name||''}
-        </div>`,
-        iconSize: [180, 26], iconAnchor: [90, 13], className: ''
-      });
-      poly.bindTooltip(`配布済み: ${s.title||'無題'}（${s.date||'日付不明'}）<br>担当: ${m.name}`, {
-        sticky: true, direction: 'top'
-      });
-      pastAreaLayerGroup.addLayer(poly);
-      pastAreaLayerGroup.addLayer(L.marker([clat, clng], { icon: labelIcon, interactive: false }));
-    });
-  });
-}
-
-function togglePastAreas() {
-  showPastAreas = !showPastAreas;
-  const btn = document.getElementById('tool-past');
-  btn.classList.toggle('active', showPastAreas);
-  btn.textContent = showPastAreas ? '🗺 過去配布エリア表示中' : '🗺 過去配布エリア非表示';
-  drawPastAreas();
-}
-
-function activateDraw(type) {
-  if (!selectedMemberId) { alert('先にメンバーを選択してください'); return; }
-  if (drawHandler) { drawHandler.disable(); drawHandler = null; }
-  document.getElementById('tool-rect').classList.remove('active');
-  document.getElementById('tool-poly').classList.remove('active');
-  const m = editMembers.find(m => m.id === selectedMemberId);
-  const opts = { shapeOptions: { color: m.color, fillColor: m.color, fillOpacity: 0.15, weight: 2.5 } };
-  if (type === 'rect') {
-    drawHandler = new L.Draw.Rectangle(amap, opts);
-    document.getElementById('tool-rect').classList.add('active');
-  } else {
-    drawHandler = new L.Draw.Polygon(amap, opts);
-    document.getElementById('tool-poly').classList.add('active');
-  }
-  drawHandler.enable();
-  amap.once(L.Draw.Event.CREATED, e => {
-    const coords = e.layer.getLatLngs()[0].map(ll => [ll.lat, ll.lng]);
-    const m2 = editMembers.find(m => m.id === selectedMemberId);
-    if (m2) {
-      m2.area = coords;
-      zoneLayerGroup.clearLayers();
-      editMembers.forEach(m3 => { if (m3.area) drawMemberZone(m3); });
-      renderMemberList();
-      renderMemberBtns();
-    }
-    document.getElementById('tool-rect').classList.remove('active');
-    document.getElementById('tool-poly').classList.remove('active');
-    drawHandler = null;
-  });
-}
-
-function clearSelectedArea() {
-  if (!selectedMemberId) { alert('メンバーを選択してください'); return; }
-  const m = editMembers.find(m => m.id === selectedMemberId);
-  if (m && m.area) {
-    if (!confirm(`${TI[m.transport]}${m.name} のエリアを削除しますか？`)) return;
-    m.area = null;
-    zoneLayerGroup.clearLayers();
-    editMembers.forEach(m2 => { if (m2.area) drawMemberZone(m2); });
-    renderMemberList();
-    renderMemberBtns();
-  }
-}
-
-function drawMemberZone(m) {
-  const poly = L.polygon(m.area, {
-    color: m.color, fillColor: m.color, fillOpacity: 0.15, weight: 2.5, dashArray: '6 4'
-  });
-  const lats = m.area.map(c=>c[0]), lngs = m.area.map(c=>c[1]);
-  const clat = (Math.min(...lats)+Math.max(...lats))/2;
-  const clng = (Math.min(...lngs)+Math.max(...lngs))/2;
-  const licon = L.divIcon({
-    html: `<div style="background:rgba(255,255,255,.9);border:1.5px solid ${m.color};border-radius:7px;padding:2px 9px;font-size:11px;font-weight:700;color:${m.color};white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.1)">${TI[m.transport]} ${m.name}</div>`,
-    iconSize:[130,24], iconAnchor:[65,12], className:''
-  });
-  zoneLayerGroup.addLayer(poly);
-  zoneLayerGroup.addLayer(L.marker([clat,clng],{icon:licon,interactive:false}));
-}
-
-function renderMemberBtns() {
-  const c = document.getElementById('member-btns');
-  if (!editMembers.length) { c.innerHTML = '<span style="font-size:12px;color:var(--text3)">基本設定タブでメンバーを追加してください</span>'; return; }
-  c.innerHTML = editMembers.map(m => `
-    <button class="mbtn${m.id===selectedMemberId?' sel':''}"
-      style="color:${m.color};border-color:${m.color};${m.id===selectedMemberId?`background:${m.color};color:#fff`:''}"
-      onclick="selectMapMember('${m.id}')">
-      ${TI[m.transport]} ${m.name} ${m.area?'✓':''}
-    </button>`).join('');
-}
-
-function selectMapMember(id) {
-  selectedMemberId = id;
-  renderMemberBtns();
-}
-
-// ============================================================
-// Admin: member CRUD
-// ============================================================
-function renderMemberList() {
-  const c = document.getElementById('m-list');
-  if (!editMembers.length) {
-    c.innerHTML = '<div style="padding:18px;text-align:center;color:var(--text3);font-size:13px">メンバーがいません</div>';
-    return;
-  }
-  c.innerHTML = '';
-  editMembers.forEach((m, i) => {
-    const item = document.createElement('div');
-    item.className = 'mitem';
-    item.style.cursor = 'pointer';
-    item.addEventListener('click', () => openEditMember(i));
-
-    const bar = document.createElement('div');
-    bar.className = 'mbar';
-    bar.style.background = m.color;
-
-    const info = document.createElement('div');
-    info.className = 'minfo';
-    info.innerHTML = `<div class="mname">${TI[m.transport]} ${m.name}${m.target?' ('+m.target+'枚)':''}</div><div class="marea">${m.area ? '✓ エリア設定済み' : '⚠ エリア未設定 — エリア設定タブで描く'}</div>`;
-
-    const del = document.createElement('div');
-    del.className = 'mdel';
-    del.textContent = '✕';
-    del.addEventListener('click', (e) => {
-      e.stopPropagation();
-      delMember(i);
-    });
-
-    item.appendChild(bar);
-    item.appendChild(info);
-    item.appendChild(del);
-    c.appendChild(item);
-  });
-}
-
-function openAddMember() {
-  nmTransport = 'car'; nmColor = COLORS[editMembers.length % COLORS.length];
-  document.getElementById('nm-name').value = '';
-  ['car','bike','walk'].forEach(t => document.getElementById('t-'+t).classList.toggle('on', t===nmTransport));
-  const cd = document.getElementById('color-dots');
-  cd.innerHTML = COLORS.map(c => `<div class="cdot${c===nmColor?' on':''}" style="background:${c}" onclick="selNmColor('${c}')"></div>`).join('');
-  document.getElementById('m-add-title').textContent = 'メンバーを追加';
-  document.getElementById('m-add-modal').classList.add('on');
-  setTimeout(() => document.getElementById('nm-name').focus(), 100);
-}
-
-function closeAddMember() { document.getElementById('m-add-modal').classList.remove('on'); }
-
-function selTransport(t) {
-  nmTransport = t;
-  ['car','bike','walk'].forEach(bt => document.getElementById('t-'+bt).classList.toggle('on', bt===t));
-}
-function selNmColor(c) {
-  nmColor = c;
-  document.querySelectorAll('#color-dots .cdot').forEach(d => d.classList.toggle('on', d.style.background===c||d.style.backgroundColor===c));
-}
-
-function confirmAddMember() {
-  const name = document.getElementById('nm-name').value.trim();
-  if (!name) { alert('名前を入力してください'); return; }
-  editMembers.push({ id:'m_'+Date.now()+'_'+Math.random().toString(36).slice(2,5), name, transport:nmTransport, color:nmColor, area:null, target:0 });
-  closeAddMember();
-  renderMemberList();
-}
-
-function delMember(i) {
-  showConfirm('メンバーを削除', `「${editMembers[i].name}」を削除しますか？`, () => {
-    editMembers.splice(i, 1);
-    renderMemberList();
-  });
-}
-
-function openEditMember(i) {
-  emIdx = i;
-  const m = editMembers[i];
-  emTransport = m.transport;
-  document.getElementById('em-name').value = m.name;
-  document.getElementById('em-target').value = m.target || '';
-  ['car','bike','walk'].forEach(t => document.getElementById('et-'+t).classList.toggle('on', t===emTransport));
-  document.getElementById('m-edit-modal').classList.add('on');
-}
-function closeEditMember() { document.getElementById('m-edit-modal').classList.remove('on'); }
-function selEditTransport(t) {
-  emTransport = t;
-  ['car','bike','walk'].forEach(bt => document.getElementById('et-'+bt).classList.toggle('on', bt===t));
-}
-function confirmEditMember() {
-  const name = document.getElementById('em-name').value.trim();
-  if (!name) { alert('名前を入力してください'); return; }
-  editMembers[emIdx].name = name;
-  editMembers[emIdx].transport = emTransport;
-  const t = parseInt(document.getElementById('em-target').value);
-  if (!isNaN(t) && t > 0) editMembers[emIdx].target = t;
-  closeEditMember();
-  renderMemberList();
-  if (amap) { zoneLayerGroup.clearLayers(); editMembers.forEach(m => { if(m.area) drawMemberZone(m); }); renderMemberBtns(); }
-}
-
-// ============================================================
-// Admin: sessions list
-// ============================================================
-function renderSessList() {
-  const c = document.getElementById('sess-list');
-  if (!sessions.length) {
-    c.innerHTML = '<div style="padding:18px;text-align:center;color:var(--text3);font-size:13px">保存済みセッションなし</div>';
-    return;
-  }
-  // innerHTML使わずDOMで構築（onclick属性の問題を回避）
-  c.innerHTML = '';
-  sessions.forEach((s, i) => {
-    const item = document.createElement('div');
-    item.className = 'sitem';
-
-    const icon = document.createElement('div');
-    icon.className = 'sicon';
-    icon.textContent = '📋';
-
-    const info = document.createElement('div');
-    info.className = 'sinfo';
-    info.style.cursor = 'pointer';
-    info.innerHTML = `<div class="sname">${s.title||'無題'}</div><div class="smeta">${s.date||''} / ${(s.members||[]).length}名 / ${s.total||'?'}枚</div>`;
-    info.addEventListener('click', () => loadSession(s));
-
-    const delBtn = document.createElement('button');
-    delBtn.className = 'sdel';
-    delBtn.textContent = '削除';
-    delBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      doDeleteSession(s.id);
-    });
-
-    const arr = document.createElement('div');
-    arr.className = 'sarr';
-    arr.textContent = '›';
-    arr.style.cursor = 'pointer';
-    arr.addEventListener('click', () => loadSession(s));
-
-    item.appendChild(icon);
-    item.appendChild(info);
-    item.appendChild(delBtn);
-    item.appendChild(arr);
-    c.appendChild(item);
-  });
-}
-
-async function doDeleteSession(id) {
-  showConfirm('セッションを削除', 'このセッションを削除しますか？', async () => {
-    loading(true, '削除中...');
-    await deleteSession(id);
-    await fetchSessions();
-    renderSessList();
-    loading(false);
-  });
-}
-
-// ============================================================
-// Staff: picker
-// ============================================================
-function showPicker() {
-  document.getElementById('picker-overlay').style.display = 'flex';
-}
-
-function getActiveSession() {
-  if (!sessions.length) return null;
-  // 前回使ったセッションIDが記録されていれば、それを優先的に使う
-  const lastId = localStorage.getItem('pm_last_session_id');
-  if (lastId) {
-    const found = sessions.find(s => s.id === lastId);
-    if (found) return found;
-  }
-  // なければ最新のセッションを使う
-return sessions[0];
-}
-
-function renderPickerGrid() {
-  const grid = document.getElementById('picker-grid');
-  const noSess = document.getElementById('picker-no-sess');
-  const sessName = document.getElementById('picker-sess-name');
-
-  if (!sessions.length) {
-    grid.innerHTML = '';
-    noSess.style.display = 'block';
-    sessName.textContent = 'セッションが見つかりません';
-    return;
-  }
-
-  noSess.style.display = 'none';
-  const sess = getActiveSession();
-  sessName.textContent = `${sess.title||'無題'} / ${sess.date||''}`;
-
-  grid.innerHTML = (sess.members||[]).map((m,i) => `
-    <button class="pbtn" onclick="joinStaff(${i})" style="border-color:${m.color}22">
-      <div class="pdot" style="background:${m.color}"></div>
-      <div>
-        <div class="pname">${TI[m.transport]} ${m.name}</div>
-        <div class="pdetail">${m.area?'エリア設定済み':'エリア未設定'} / 目標 ${m.target||'?'} 枚</div>
-      </div>
-      <div class="parr">›</div>
-    </button>`).join('');
-}
-
-// ============================================================
-// Staff: join
-// ============================================================
-function joinStaff(idx) {
-  const sess = getActiveSession();
-  if (!sess) return;
-  myIdx = idx;
-  // このセッションを「使用中」として記憶（リロード後も同じセッションを使い続ける）
-  try { localStorage.setItem('pm_last_session_id', sess.id); } catch(e) {}
-  document.getElementById('picker-overlay').style.display = 'none';
-  document.getElementById('s-title').textContent = sess.title || 'PostingMap';
-
-  if (!smap) {
-    initStaffMap();
-  } else if (Object.keys(aptMarkers).length === 0) {
-    // smapは既にあるが集合住宅ピンがまだ描画されていない場合は再描画
-    drawApartments();
-  }
-  sMarkers = sess.members.map(() => []);
-  history = [];
-
-  layoutStaff();
-  setTimeout(layoutStaff, 50);
-  drawPastZones(sess);   // 過去配布エリアを最背面に描画
-  drawPastMarkers(sess); // 過去の配布済みピンを描画
-  drawZones(sess);       // 現在のエリアを前面に描画
-  loadDynamicApts().then(() => loadAptRecords());
-  // 地図のズームレベルが一定以上になったらOSM集合住宅を取得
-  smap.on('zoomend', () => {
-    if (smap.getZoom() >= 14) fetchOsmApartments();
-  });
-  // 初期ズームが14以上なら即取得
-  if (smap.getZoom() >= 14) fetchOsmApartments();
-  renderRbar(sess);
-  updateBadge(sess);
-  startGPS();
-  loadStaffMarkers(sess);
-  if (syncTmr) clearInterval(syncTmr);
-  syncTmr = setInterval(() => loadStaffMarkers(sess), 5000);
-
-  // PCでタブがバックグラウンドになるとsetIntervalが間引かれるため、
-  // タブが再度アクティブになった瞬間に即座に再同期する
-  setupVisibilitySync(sess);
-
-  setTimeout(() => { document.getElementById('s-hint').style.opacity = '0'; }, 3000);
-}
-
-function layoutStaff() {
-  const hH = document.getElementById('staff-hdr').offsetHeight;
-  const rH = document.getElementById('rbar').offsetHeight || 52;
-  // iPhoneのセーフエリア対応（ホームバーの高さ分）
-  const safeBottom = window.innerHeight - document.documentElement.clientHeight || 0;
-  const bH = 72 + Math.max(safeBottom, 0);
-  document.getElementById('rbar').style.top = hH + 'px';
-  document.getElementById('s-map').style.top = (hH + rH) + 'px';
-  document.getElementById('s-map').style.bottom = bH + 'px';
-  document.getElementById('gps-btn').style.bottom = (bH + 12) + 'px';
-  document.getElementById('s-hint').style.bottom = (bH + 12) + 'px';
-  document.getElementById('s-leg').style.bottom = (bH + 12) + 'px';
-  if (smap) smap.invalidateSize();
-
-  // エリアにズーム
-  const sess = getActiveSession();
-  if (!sess) return;
-  const m = sess.members[myIdx];
-  if (m && m.area && smap) {
-    smap.fitBounds(L.latLngBounds(m.area.map(c => L.latLng(c[0], c[1]))), { padding: [40, 40] });
-  } else if (smap) {
-    smap.setView([35.910, 139.490], 14);
-  }
-}
-
-// ============================================================
-// Staff map init
-// ============================================================
-function initStaffMap() {
-  smap = L.map('s-map', { zoomControl: true, attributionControl: false, tapTolerance: 15 });
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 20, minZoom: 10 }).addTo(smap);
-  smap.on('zoomend', updateBizVis);
-  smap.on('click', e => {
-    if (isTouching) return;
-    if (addAptMode) {
-      // 集合住宅追加モードはタップ位置をモーダルに渡す
-      openAddAptModal(e.latlng);
-      return;
-    }
-    addStaffMarker(myIdx, e.latlng);
-  });
-  const md = document.getElementById('s-map');
-  md.addEventListener('touchstart', e => { if (e.touches.length >= 2) isTouching = true; }, { passive: true });
-  md.addEventListener('touchend', e => { if (e.touches.length === 0) setTimeout(() => isTouching = false, 300); }, { passive: true });
-  drawApartments();
-}
-
-// 集合住宅マーカー参照保存（アイコン更新用）
-const aptMarkers = {};
-
-function aptIconHtml(apt) {
-  const rec = aptRecords[apt.id];
-  const done = rec && rec.done;
-  const qty  = rec ? rec.qty : 0;
-  const bg     = done ? '#22c55e' : (apt.fromOsm ? '#fff7ed' : '#fff');
-  const border  = done ? '#15803d' : (apt.fromOsm ? '#f97316' : '#333');
-  const textCol = done ? '#fff'    : (apt.fromOsm ? '#c2410c' : '#333');
-  const checkMark = done ? ' ✓' : '';
-  // 表示名を短縮
-  const label = apt.name.length > 14 ? apt.name.slice(0,13)+'…' : apt.name;
-  return `<div style="display:flex;flex-direction:column;align-items:center;pointer-events:none">
-    <div style="background:${bg};border:2px solid ${border};border-radius:8px;padding:3px 8px;font-size:11px;font-weight:700;color:${textCol};white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.2)">
-      🏢 ${label}${checkMark}${done?' '+qty+'枚':''}
-    </div>
-    <div style="width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid ${border};margin-top:-1px"></div>
-  </div>`;
-}
-
-function refreshAptIcon(apt) {
-  const m = aptMarkers[apt.id];
-  if (!m) return;
-  const icon = L.divIcon({ html: aptIconHtml(apt), iconSize:[140,36], iconAnchor:[70,36], popupAnchor:[-60,-36], className:'' });
-  m.setIcon(icon);
-}
-
-function drawApartments() {
-  APARTMENTS.forEach(apt => {
-    // 既に描画済みならスキップ（重複防止）
-    if (aptMarkers[apt.id]) return;
-    const icon = L.divIcon({
-      html: aptIconHtml(apt),
-      iconSize: [140, 36], iconAnchor: [70, 36], popupAnchor: [-60, -36], className: ''
-    });
-    const marker = L.marker([apt.lat, apt.lng], { icon, zIndexOffset: 600 }).addTo(smap);
-    aptMarkers[apt.id] = marker;
-
-    const popup = L.popup({
-      maxWidth: 240,
-      minWidth: 220,
-      autoPan: true,
-      autoPanPadding: [20, 20],
-      keepInView: true
-    });
-    marker.on('popupopen', () => buildAptPopup(popup, apt, marker));
-    marker.bindPopup(popup);
-  });
-}
-
-// ── スタッフ画面：過去配布エリア描画 ─────────────────────────
-let staffPastVisible = true;
-
-function toggleStaffPastZones() {
-  staffPastVisible = !staffPastVisible;
-  [...sPastZones, ...sPastMarkers].forEach(l => {
-    try {
-      if (staffPastVisible) l.addTo(smap);
-      else smap.removeLayer(l);
-    } catch(e) {}
-  });
-  const dot = document.getElementById('past-leg-dot');
-  const lbl = document.getElementById('past-leg-label');
-  if (dot) dot.style.opacity = staffPastVisible ? '.7' : '.2';
-  if (lbl) lbl.style.color  = staffPastVisible ? '' : '#bbb';
-}
-
-function drawPastZones(currentSess) {
-  // 既存の過去エリアを削除
-  sPastZones.forEach(l => { try { smap.removeLayer(l); } catch(e) {} });
-  sPastZones = [];
-
-  // 現在のセッション以外の全セッションのエリアを表示
-  sessions.forEach(s => {
-    if (s.id === currentSess.id) return; // 今のセッションは除く
-    (s.members || []).forEach(m => {
-      if (!m.area) return;
-      const poly = L.polygon(m.area, {
-        color: '#444444',
-        fillColor: '#555555',
-        fillOpacity: 0.40,
-        weight: 2.5,
-        dashArray: '8 4',
-        interactive: true,
-        zIndexOffset: -1000 // 現在エリアより背面に
-      }).addTo(smap);
-
-      // ラベル（中央に日付・担当者）
-      const lats = m.area.map(c => c[0]), lngs = m.area.map(c => c[1]);
-      const clat = (Math.min(...lats) + Math.max(...lats)) / 2;
-      const clng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
-      const lIcon = L.divIcon({
-        html: `<div style="background:#333;color:#fff;border-radius:7px;padding:4px 10px;font-size:11px;font-weight:700;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.3);border:1.5px solid #fff;pointer-events:none">
-          🚫 配布済 ${s.date||''} ${TI[m.transport]||''}${m.name||''}
-        </div>`,
-        iconSize: [180, 26], iconAnchor: [90, 13], className: ''
-      });
-      const lm = L.marker([clat, clng], { icon: lIcon, interactive: false, zIndexOffset: -900 }).addTo(smap);
-
-      // タップでセッション情報を表示
-      poly.bindPopup(`<div style="padding:10px 13px;min-width:160px">
-        <div style="font-size:13px;font-weight:700;margin-bottom:4px">🚫 配布済みエリア</div>
-        <div style="font-size:12px;color:#555;margin-bottom:3px">📋 ${s.title||'無題'}</div>
-        <div style="font-size:11px;color:#888">📅 ${s.date||'日付不明'}</div>
-        <div style="font-size:11px;color:#888">👤 ${TI[m.transport]||''}${m.name||''}</div>
-      </div>`, { maxWidth: 220 });
-
-      sPastZones.push(poly, lm);
-    });
-  });
-}
-
-// ── スタッフ画面：過去配布済みピンの描画 ─────────────────────
-async function drawPastMarkers(currentSess) {
-  // 既存の過去ピンを削除
-  sPastMarkers.forEach(l => { try { smap.removeLayer(l); } catch(e) {} });
-  sPastMarkers = [];
-
-  // 現在のセッション以外の全セッションIDを集める
-  const pastSessionIds = sessions.filter(s => s.id !== currentSess.id).map(s => s.id);
-  if (!pastSessionIds.length) return;
-
-  try {
-    // 複数セッションのmarkersを一括取得（in句）
-    const idList = pastSessionIds.map(id => `"${id}"`).join(',');
-    const r = await fetch(`${SB}/rest/v1/markers?session=in.(${idList})&select=*`, {
-      headers: { 'apikey': KEY, 'Content-Type': 'application/json' }
-    });
-    if (!r.ok) {
-      console.error('過去マーカー取得失敗:', r.status);
-      return;
-    }
-    const data = await r.json();
-    if (!Array.isArray(data)) return;
-    console.log(`過去配布ピン取得: ${data.length}件`);
-
-    // セッションID→セッション情報のマップ
-    const sessMap = {};
-    sessions.forEach(s => { sessMap[s.id] = s; });
-
-    data.forEach(d => {
-      const s = sessMap[d.session];
-      const dateStr = s ? (s.date || '') : '';
-      const icon = L.divIcon({
-        html: `<div style="width:14px;height:14px;border-radius:50%;background:#999;border:2px solid #666;opacity:.75;box-shadow:0 1px 3px rgba(0,0,0,.2)"></div>`,
-        iconSize: [14, 14], iconAnchor: [7, 7], className: ''
-      });
-      const m = L.marker([d.lat, d.lng], { icon, zIndexOffset: -800, interactive: true }).addTo(smap);
-      m.bindPopup(`<div style="padding:8px 12px;font-size:12px">
-        <b>🕓 過去の配布済み地点</b><br>
-        📅 ${dateStr || '日付不明'}
-      </div>`, { maxWidth: 180 });
-      sPastMarkers.push(m);
-    });
-  } catch(e) {
-    console.error('過去マーカー取得エラー:', e);
-  }
-}
-
-// ── ポップアップ内容生成（固定・動的集合住宅共通） ─────────────
-function buildAptPopup(popup, apt, marker) {
-      const rec = aptRecords[apt.id];
-      const isDone = rec && rec.done;
-
-      const div = document.createElement('div');
-      div.style.cssText = 'padding:14px 16px;';
-
-      const title = document.createElement('div');
-      title.style.cssText = 'font-size:14px;font-weight:700;margin-bottom:3px;color:#111';
-      title.textContent = '🏢 ' + apt.name + (apt.dynamic ? ' ✏️' : '');
-      div.appendChild(title);
-
-      const addr = document.createElement('div');
-      addr.style.cssText = 'font-size:11px;color:#888;margin-bottom:12px';
-      addr.textContent = apt.dynamic
-        ? `追加済み集合住宅（目安 ${apt.units||'?'}戸）`
-        : `${apt.addr}（目安 ${apt.units}戸）`;
-      div.appendChild(addr);
-
-      if (isDone) {
-        const doneBox = document.createElement('div');
-        doneBox.style.cssText = 'background:#f0fdf4;border:1.5px solid #22c55e;border-radius:10px;padding:10px 12px;margin-bottom:10px;text-align:center';
-        const memberName = rec.memberName || '';
-        doneBox.innerHTML = `
-          <div style="font-size:22px;font-weight:700;color:#15803d">${rec.qty} <span style="font-size:13px">枚</span></div>
-          <div style="font-size:11px;color:#16a34a;margin-top:2px">✓ 配布完了${memberName ? ' (' + memberName + ')' : ''}</div>`;
-        div.appendChild(doneBox);
-
-        const editBtn = document.createElement('button');
-        editBtn.style.cssText = 'width:100%;padding:9px;border-radius:10px;border:1.5px solid #ddd;background:#fff;color:#555;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:7px;font-family:inherit';
-        editBtn.textContent = '✏️ 枚数を修正する';
-        editBtn.addEventListener('click', () => {
-          delete aptRecords[apt.id];
-          saveAptRecords();
-          refreshAptIcon(apt);
-          updateAll();
-          marker.closePopup();
-          setTimeout(() => marker.openPopup(), 100);
-        });
-        div.appendChild(editBtn);
-
-        // 動的Aptは削除ボタンも表示
-        if (apt.dynamic) {
-          const delBtn = document.createElement('button');
-          delBtn.style.cssText = 'width:100%;padding:9px;border-radius:10px;border:none;background:#fff1f0;color:#dc2626;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:7px;font-family:inherit';
-          delBtn.textContent = '🗑 この集合住宅を削除';
-          delBtn.addEventListener('click', () => {
-            removeDynamicApt(apt.id);
-            marker.closePopup();
-            smap.removeLayer(marker);
-          });
-          div.appendChild(delBtn);
-        }
-
-      } else {
-        // 担当者セレクター
-        const memberLabel = document.createElement('div');
-        memberLabel.style.cssText = 'font-size:12px;font-weight:600;color:#555;margin-bottom:6px';
-        memberLabel.textContent = '配った人';
-        div.appendChild(memberLabel);
-
-        const memberSel = document.createElement('div');
-        memberSel.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px';
-        const sess = getActiveSession();
-        let selectedMemberId = sess?.members[myIdx]?.id || '';
-        let selectedMemberName = sess?.members[myIdx]?.name || '';
-        (sess?.members || []).forEach(m => {
-          const btn = document.createElement('button');
-          btn.dataset.mid = m.id;
-          btn.dataset.mname = m.name;
-          const isSel = m.id === selectedMemberId;
-          btn.style.cssText = `padding:6px 14px;border-radius:99px;border:2px solid ${m.color};font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:${isSel?m.color:'#fff'};color:${isSel?'#fff':m.color}`;
-          btn.textContent = TI[m.transport] + ' ' + m.name;
-          btn.addEventListener('click', () => {
-            selectedMemberId = m.id;
-            selectedMemberName = m.name;
-            memberSel.querySelectorAll('button').forEach(b => {
-              const bm = sess.members.find(x => x.id === b.dataset.mid);
-              if (!bm) return;
-              b.style.background = b.dataset.mid === selectedMemberId ? bm.color : '#fff';
-              b.style.color      = b.dataset.mid === selectedMemberId ? '#fff' : bm.color;
-            });
-          });
-          memberSel.appendChild(btn);
-        });
-        div.appendChild(memberSel);
-
-        const label = document.createElement('div');
-        label.style.cssText = 'font-size:12px;font-weight:600;color:#555;margin-bottom:6px';
-        label.textContent = '配布枚数';
-        div.appendChild(label);
-
-        const inputWrap = document.createElement('div');
-        inputWrap.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:10px';
-        const input = document.createElement('input');
-        input.type = 'number'; input.min = '1';
-        input.value = apt.defaultQty || apt.units || 10;
-        input.style.cssText = 'flex:1;padding:10px 12px;border-radius:10px;border:1.5px solid #ddd;font-size:20px;font-weight:700;text-align:center;font-family:inherit;outline:none;color:#111';
-        input.addEventListener('focus', () => { input.style.borderColor = '#0071e3'; });
-        input.addEventListener('blur',  () => { input.style.borderColor = '#ddd'; });
-        const minus = document.createElement('button');
-        minus.textContent = '－';
-        minus.style.cssText = 'width:36px;height:36px;border-radius:50%;border:1.5px solid #ddd;background:#fff;font-size:18px;cursor:pointer;flex-shrink:0;font-family:inherit';
-        minus.addEventListener('click', () => { const v=parseInt(input.value)||0; if(v>1) input.value=v-1; });
-        const plus = document.createElement('button');
-        plus.textContent = '＋';
-        plus.style.cssText = 'width:36px;height:36px;border-radius:50%;border:1.5px solid #ddd;background:#fff;font-size:18px;cursor:pointer;flex-shrink:0;font-family:inherit';
-        plus.addEventListener('click', () => { input.value=(parseInt(input.value)||0)+1; });
-        inputWrap.appendChild(minus); inputWrap.appendChild(input); inputWrap.appendChild(plus);
-        div.appendChild(inputWrap);
-
-        const doneBtn = document.createElement('button');
-        doneBtn.style.cssText = 'width:100%;padding:11px;border-radius:10px;border:none;background:#22c55e;color:#fff;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px;font-family:inherit';
-        doneBtn.textContent = '✓ 配布完了';
-        doneBtn.addEventListener('click', async () => {
-          const qty = parseInt(input.value);
-          if (!qty || qty < 1) { input.style.borderColor='#ff3b30'; return; }
-
-          doneBtn.textContent = '保存中...';
-          doneBtn.disabled = true;
-
-          const ok = await saveAptToSupabase(apt, qty, selectedMemberId, selectedMemberName);
-
-          if (!ok) {
-            doneBtn.textContent = '✓ 配布完了';
-            doneBtn.disabled = false;
-            alert('保存に失敗しました。通信環境を確認してもう一度お試しください。');
-            return;
-          }
-
-          // 保存成功後にローカル状態・UIを更新
-          aptRecords[apt.id] = { qty, done: true, memberId: selectedMemberId, memberName: selectedMemberName, ts: Date.now() };
-          saveAptRecords();
-          refreshAptIcon(apt);
-          marker.closePopup();
-          updateAll();
-          updateAptBadge();
-        });
-        div.appendChild(doneBtn);
-      }
-
-      // ナビボタン（共通）
-      const navBtn = document.createElement('button');
-      navBtn.style.cssText = 'width:100%;padding:10px;border-radius:10px;border:none;background:#0071e3;color:#fff;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit';
-      navBtn.innerHTML = '🗺 Googleマップでナビ';
-      navBtn.addEventListener('click', () => {
-        window.open(`https://www.google.com/maps/dir/?api=1&destination=${apt.lat},${apt.lng}&travelmode=driving`, '_blank');
-      });
-      div.appendChild(navBtn);
-      popup.setContent(div);
-}
-
-// 集合住宅配布をSupabaseに保存
-async function saveAptToSupabase(apt, qty, memberId, memberName) {
-  const sess = getActiveSession();
-  if (!sess) { console.error('セッションが見つかりません'); return false; }
-  const body = {
-    session_id: sess.id, apt_id: apt.id, apt_name: apt.name,
-    qty, done: true, member_id: memberId, member_name: memberName
-  };
-  try {
-    const checkR = await fetch(`${SB}/rest/v1/apt_records?session_id=eq.${encodeURIComponent(sess.id)}&apt_id=eq.${encodeURIComponent(apt.id)}&select=id`, {
-      headers: { 'apikey': KEY, 'Content-Type': 'application/json' }
-    });
-    const existing = checkR.ok ? await checkR.json() : [];
-
-    let r;
-    if (Array.isArray(existing) && existing.length > 0) {
-      r = await fetch(`${SB}/rest/v1/apt_records?session_id=eq.${encodeURIComponent(sess.id)}&apt_id=eq.${encodeURIComponent(apt.id)}`, {
-        method: 'PATCH',
-        headers: { 'apikey': KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-        body: JSON.stringify(body)
-      });
-    } else {
-      r = await fetch(`${SB}/rest/v1/apt_records`, {
-        method: 'POST',
-        headers: { 'apikey': KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-        body: JSON.stringify(body)
-      });
-    }
-    if (!r.ok) {
-      const t = await r.text().catch(()=>'');
-      console.error('集合住宅保存失敗:', r.status, t);
-      setSyncDot('err');
-      return false;
-    }
-    setSyncDot('ok');
-    return true;
-  } catch(e) {
-    console.error('集合住宅保存エラー:', e);
-    setSyncDot('err');
-    return false;
-  }
-}
-
-// ローカル保存・読込
-function saveAptRecords() {
-  try { localStorage.setItem('apt_records_v1', JSON.stringify(aptRecords)); } catch(e) {}
-}
-async function loadAptRecords() {
-  try {
-    const raw = localStorage.getItem('apt_records_v1');
-    if (raw) aptRecords = JSON.parse(raw);
-  } catch(e) {}
-  const sess = getActiveSession(); if (!sess) return;
-  try {
-    const r = await fetch(`${SB}/rest/v1/apt_records?session_id=eq.${encodeURIComponent(sess.id)}&select=*`, {
-      headers: { 'apikey': KEY, 'Content-Type': 'application/json' }
-    });
-    if (!r.ok) {
-      console.error('apt_records取得失敗:', r.status, await r.text().catch(()=>''));
-      return;
-    }
-    const data = await r.json();
-    if (!Array.isArray(data)) return;
-    console.log(`apt_records取得: ${data.length}件`);
-    data.forEach(d => {
-      aptRecords[d.apt_id] = { qty: d.qty, done: d.done, memberId: d.member_id, memberName: d.member_name, ts: Date.now() };
-    });
-    saveAptRecords();
-    APARTMENTS.forEach(apt => refreshAptIcon(apt));
-    dynamicApts.forEach(apt => refreshAptIcon(apt));
-    updateAptBadge();
-  } catch(e) {
-    console.error('apt_records取得エラー:', e);
-  }
-}
-
-// ヘッダーバッジ更新
-function updateAptBadge() {
-  const total = APARTMENTS.reduce((s, a) => s + (aptRecords[a.id]?.qty || 0), 0);
-  const done  = APARTMENTS.filter(a => aptRecords[a.id]?.done).length;
-  const el = document.getElementById('apt-badge');
-  if (el) {
-    if (done > 0) {
-      el.textContent = `🏢 ${done}/${APARTMENTS.length}棟 ${total}枚`;
-      el.style.display = 'block';
-    } else {
-      el.style.display = 'none';
-    }
-  }
-}
-
-// ============================================================
-// Staff: zones
-// ============================================================
-function drawZones(sess) {
-  sZones.forEach(l => { try { smap.removeLayer(l); } catch(e) {} });
-  sZones = [];
-  (sess.members||[]).forEach((m, i) => {
-    if (!m.area) return;
-    const active = i === myIdx;
-    const poly = L.polygon(m.area, {
-      color: m.color, fillColor: m.color,
-      fillOpacity: active ? 0.12 : 0.04,
-      weight: active ? 2.5 : 1.5,
-      dashArray: '7 5', opacity: active ? 1 : 0.5
-    }).addTo(smap);
-    const lats = m.area.map(c=>c[0]), lngs = m.area.map(c=>c[1]);
-    const clat = (Math.min(...lats)+Math.max(...lats))/2;
-    const clng = (Math.min(...lngs)+Math.max(...lngs))/2;
-    const done = sMarkers[i] ? sMarkers[i].length : 0;
-    const rem = m.target ? Math.max(0, m.target-done) : '?';
-    const li = L.divIcon({
-      html: `<div style="background:rgba(255,255,255,.92);border:1.5px solid ${m.color};border-radius:8px;padding:3px 10px;white-space:nowrap;pointer-events:none;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.08)">
-        <div style="font-size:11px;font-weight:700;color:${m.color}">${TI[m.transport]} ${m.name}</div>
-        <div style="font-size:10px;color:#555;margin-top:1px">残り <b>${rem}</b> 件</div>
-      </div>`,
-      iconSize:[130,40], iconAnchor:[65,20], className:''
-    });
-    sZones.push(poly, L.marker([clat,clng],{icon:li,interactive:false}).addTo(smap));
-  });
-}
-
-// ============================================================
-// Staff: markers
-// ============================================================
-function mkIcon() {
-  return L.divIcon({
-    html: `<div style="width:26px;height:26px;border-radius:50%;background:#22c55e;border:3px solid #15803d;display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;font-weight:900;box-shadow:0 2px 6px rgba(0,0,0,.25)">✓</div>`,
-    iconSize:[26,26], iconAnchor:[13,13], className:''
-  });
-}
-
-function addStaffMarker(mi, latlng, savedId) {
-  const id = savedId || (String(Date.now()) + String(Math.random()).slice(2,7));
-  const lm = L.marker(latlng, { icon: mkIcon(), riseOnHover: true }).addTo(smap);
-  const obj = { id, latlng, marker: lm };
-  sMarkers[mi].push(obj);
-  bindSPop(obj, mi);
-  if (!savedId) {
-    history.push({ mi, id });
-    const sess = getActiveSession();
-    fetch(`${SB}/rest/v1/markers`, {
-      method: 'POST',
-      headers: { 'apikey': KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-      body: JSON.stringify({ id, session: sess.id, member_id: sess.members[mi].id, lat: latlng.lat, lng: latlng.lng })
-    }).then(r => {
-      if (!r.ok) {
-        setSyncDot('err');
-        r.text().then(t => console.error('マーカー送信失敗:', r.status, t));
-      } else {
-        setSyncDot('ok');
-      }
-    }).catch(e => {
-      setSyncDot('err');
-      console.error('マーカー送信エラー:', e);
-    });
-  }
-  updateAll();
-}
-
-function bindSPop(obj, mi) {
-  // HTMLポップアップ + popupopenイベントでボタンにバインド（最も確実な方法）
-  const popupId = 'pop_' + obj.id.replace(/[^a-z0-9]/gi,'_');
-  obj.marker.bindPopup(
-    `<div style="padding:12px 14px;min-width:140px">
-      <div style="font-size:13px;font-weight:700;margin-bottom:10px">✅ 配布済み</div>
-      <button id="${popupId}" style="width:100%;padding:9px;border-radius:9px;border:none;font-size:13px;font-weight:600;cursor:pointer;background:#fff1f0;color:#dc2626">🗑 取り消し</button>
-    </div>`,
-    { maxWidth: 200 }
-  );
-  obj.marker.on('popupopen', () => {
-    const btn = document.getElementById(popupId);
-    if (btn) {
-      btn.onclick = null;
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        delSMarker(obj.id, mi);
-      }, { once: true });
-    }
-  });
-}
-
-function delSMarker(id, mi) {
-  // マップからマーカーを削除
-  const idx = sMarkers[mi].findIndex(m => m.id === id);
-  if (idx !== -1) {
-    try { smap.removeLayer(sMarkers[mi][idx].marker); } catch(e) {}
-    sMarkers[mi].splice(idx, 1);
-  }
-  smap.closePopup();
-  // Supabaseから削除
-  const sess = getActiveSession();
-  if (sess && sess.id) {
-    api(`markers?id=eq.${id}&session=eq.${sess.id}`, { method: 'DELETE' })
-      .then(r => { if(!r.ok) console.error('削除失敗', id); })
-      .catch(e => console.error('削除エラー', e));
-  }
-  updateAll();
-}
-
-function undoLast() {
-  if (!history.length) { alert('元に戻せる操作がありません'); return; }
-  const last = history.pop();
-  delSMarker(last.id, last.mi);
-  updateAll();
-}
-
-function resetMy() {
-  showConfirm('リセット', '自分のマーカーをすべて削除しますか？', () => {
-    const sess = getActiveSession();
-    if (!sess) return;
-    // まずマップから全マーカーを削除
-    sMarkers[myIdx].forEach(mk => {
-      try { smap.removeLayer(mk.marker); } catch(e) {}
-    });
-    // IDリストを保存してからクリア
-    const ids = sMarkers[myIdx].map(mk => mk.id);
-    sMarkers[myIdx] = [];
-    history = history.filter(h => h.mi !== myIdx);
-    smap.closePopup();
-    // DBから削除（非同期・画面更新は先に実施）
-    ids.forEach(id => {
-      api(`markers?id=eq.${id}&session=eq.${sess.id}`, { method: 'DELETE' }).catch(() => {});
-    });
-    updateAll();
-  });
-}
-
-// ============================================================
-// Staff: sync
-// ============================================================
-// ── タブ復帰時に即座に再同期（PCブラウザのバックグラウンド間引き対策） ──
-let visibilitySyncBound = false;
-function setupVisibilitySync(sess) {
-  if (visibilitySyncBound) return; // リスナーは1回だけ登録
-  visibilitySyncBound = true;
-
-  const resync = () => {
-    const currentSess = getActiveSession();
-    if (currentSess) {
-      console.log('タブ復帰 → 即時再同期');
-      loadStaffMarkers(currentSess);
-    }
-  };
-
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') resync();
-  });
-  window.addEventListener('focus', resync);
-  // モバイルでもスリープ復帰時に効くようpageshowも追加
-  window.addEventListener('pageshow', resync);
-}
-
-async function loadStaffMarkers(sess) {
-  try {
-    const r = await fetch(`${SB}/rest/v1/markers?session=eq.${encodeURIComponent(sess.id)}&select=*`, {
-      headers: { 'apikey': KEY, 'Content-Type': 'application/json' }
-    });
-    if (!r.ok) {
-      const t = await r.text().catch(()=>'');
-      console.error('markers取得失敗:', r.status, t);
-      setSyncDot('err');
-      return;
-    }
-    const data = await r.json();
-    if (!Array.isArray(data)) return;
-    setSyncDot('ok');
-    lastSyncTime = Date.now();
-
-    const localIds = new Set();
-    sMarkers.forEach(a => a.forEach(m => localIds.add(m.id)));
-    const remoteIds = new Set(data.map(d => d.id));
-
-    // 追加
-    data.forEach(d => {
-      if (localIds.has(d.id)) return;
-      const mi = sess.members.findIndex(m => m.id === d.member_id);
-      if (mi < 0) return;
-      const ll = L.latLng(d.lat, d.lng);
-      const lm = L.marker(ll, { icon: mkIcon(), riseOnHover: true }).addTo(smap);
-      const obj = { id: d.id, latlng: ll, marker: lm };
-      sMarkers[mi].push(obj);
-      bindSPop(obj, mi);
-    });
-
-    // 削除
-    sMarkers.forEach((arr, mi) => {
-      const rm = arr.filter(m => !remoteIds.has(m.id));
-      rm.forEach(m => { try { smap.removeLayer(m.marker); } catch(e) {} });
-      sMarkers[mi] = arr.filter(m => remoteIds.has(m.id));
-    });
-
-    // GPS
-    const gps = await api(`gps_positions?session=eq.${sess.id}&select=*`, { method: 'GET', json: true, prefer: '' });
-    if (Array.isArray(gps)) {
-      gps.forEach(d => {
-        const mi = sess.members.findIndex(m => m.id === d.member_id);
-        if (mi < 0 || mi === myIdx) return;
-        updateOGPS(d.member_id, d.lat, d.lng, sess.members[mi]);
-      });
-    }
-
-    updateAll();
-    // 集合住宅データも同期（動的Aptのマーカーを先に作ってから配布記録を反映する）
-    await loadDynamicApts();
-    await loadAptRecords();
-  } catch(e) {
-    console.error('loadStaffMarkersエラー:', e);
-    setSyncDot('err');
-  }
-}
-
-function setSyncDot(s) { document.getElementById('sync-dot').className = s; }
-
-function showSyncDebug() {
-  const sess = getActiveSession();
-  const total = sMarkers.reduce((s,a)=>s+a.length,0);
-  const timeStr = lastSyncTime ? new Date(lastSyncTime).toLocaleTimeString('ja-JP') : '未同期';
-  const aptDoneCount = Object.keys(aptRecords).filter(k => aptRecords[k]?.done).length;
-  const dynCount = dynamicApts.length;
-  const doNow = confirm(
-    `📡 同期状態\n\n` +
-    `セッションID: ${sess ? sess.id : 'なし'}\n` +
-    `最終同期: ${timeStr}\n` +
-    `取得済みマーカー数: ${total}件\n` +
-    `集合住宅の配布記録: ${aptDoneCount}件\n` +
-    `追加された集合住宅: ${dynCount}件\n\n` +
-    `「OK」を押すと今すぐ再同期します。`
-  );
-  if (doNow && sess) {
-    setSyncDot('');
-    loadDynamicApts().then(() => loadAptRecords());
-    loadStaffMarkers(sess);
-  }
-}
-
-function makeOtherGpsIcon(m) {
-  return L.divIcon({
-    html: `<div style="display:flex;flex-direction:column;align-items:center">
-      <div style="background:${m.color};color:#fff;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:16px;border:2.5px solid #fff;box-shadow:0 3px 8px rgba(0,0,0,.3);animation:gp 2s infinite">${TI[m.transport]}</div>
-      <div style="background:${m.color};color:#fff;border-radius:5px;padding:2px 7px;font-size:10px;font-weight:700;margin-top:3px;box-shadow:0 1px 4px rgba(0,0,0,.2)">${m.name}</div>
-    </div>`,
-    iconSize: [60, 52], iconAnchor: [30, 17], className: ''
-  });
-}
-
-function updateOGPS(mid, lat, lng, m) {
-  const ll = L.latLng(lat, lng);
-  if (otherGps[mid]) {
-    // 既存マーカーを移動（アイコンも更新して確実に表示）
-    otherGps[mid].setLatLng(ll);
-    otherGps[mid].setIcon(makeOtherGpsIcon(m));
-    return;
-  }
-  // 新規マーカー作成
-  otherGps[mid] = L.marker(ll, {
-    icon: makeOtherGpsIcon(m),
-    zIndexOffset: 8000
-  }).addTo(smap);
-  otherGps[mid].bindTooltip(m.name, { permanent: false, direction: 'top', offset: [0, -20] });
-}
-
-// ============================================================
-// Staff: UI
-// ============================================================
-function updateAll() {
-  const sess = getActiveSession();
-  if (!sess) return;
-  renderRbar(sess);
-  drawZones(sess);
-  updateBadge(sess);
-}
-
-// 全集合住宅の配布済み合計枚数
-function aptDoneTotal() {
-  return [...APARTMENTS, ...dynamicApts].reduce((s, a) => s + (aptRecords[a.id]?.done ? (aptRecords[a.id]?.qty || 0) : 0), 0);
-}
-
-// メンバーインデックスに対応する集合住宅の配布済み枚数
-function aptDoneForMember(memberIdx) {
-  const sess = getActiveSession();
-  if (!sess) return 0;
-  const memberId = sess.members[memberIdx]?.id || '';
-  return [...APARTMENTS, ...dynamicApts]
-    .reduce((s, a) => {
-      const rec = aptRecords[a.id];
-      // このメンバーが配った分だけ合計
-      if (rec && rec.done && rec.memberId === memberId) {
-        return s + (rec.qty || 0);
-      }
-      return s;
-    }, 0);
-}
-
-function renderRbar(sess) {
-  const rbar = document.getElementById('rbar');
-  rbar.innerHTML = '';
-
-
-  (sess.members||[]).forEach((m, i) => {
-    // 通常タップ数 + そのメンバー担当の集合住宅配布枚数
-    const markerDone = sMarkers[i] ? sMarkers[i].length : 0;
-    const aptDone = aptDoneForMember(i);
-    const done = markerDone + aptDone;
-    const rem = m.target ? Math.max(0, m.target - done) : '?';
-    const pct = m.target ? Math.round(done / m.target * 100) : 0;
-    const isMe = i === myIdx;
-    const div = document.createElement('div');
-    div.className = 'rb' + (isMe ? ' me' : '');
-    div.style.borderTop = `3px solid ${m.color}`;
-    // 名前ラベル（上）
-    const lbl = document.createElement('span');
-    lbl.className = 'rl';
-    lbl.style.color = m.color;
-    const shortName = m.name.length > 5 ? m.name.slice(0,5)+'…' : m.name;
-    lbl.textContent = TI[m.transport] + ' ' + shortName;
-    // 数字（下・大きく）
-    const num = document.createElement('span');
-    num.className = 'rn';
-    num.style.color = m.color;
-    num.textContent = rem;
-    div.appendChild(lbl);
-    div.appendChild(num);
-    div.addEventListener('click', () => focusMember(i));
-    rbar.appendChild(div);
-  });
-}
-
-function updateBadge(sess) {
-  const markerDone = sMarkers.reduce((s, a) => s + a.length, 0);
-  const aptDone = aptDoneTotal();
-  const td = markerDone + aptDone;
-  const tt = sess.total || sess.members.reduce((s, m) => s+(m.target||0), 0);
-  document.getElementById('s-badge').textContent = `${td}/${tt}`;
-}
-
-function focusMember(i) {
-  const sess = getActiveSession();
-  if (!sess || !sess.members) return;
-  const m = sess.members[i];
-  if (m && m.area && smap) smap.fitBounds(L.latLngBounds(m.area.map(c=>L.latLng(c[0],c[1]))),{padding:[40,40]});
-}
-
-// ============================================================
-// Biz markers
-// ============================================================
-const BIZ_Z = 17;
-function updateBizVis() {
-  const z = smap.getZoom();
-  sBizLayers.forEach(l => { if(z>=BIZ_Z){if(!smap.hasLayer(l))l.addTo(smap);}else{if(smap.hasLayer(l))smap.removeLayer(l);} });
-  if (z >= BIZ_Z) fetchBizVis();
-}
-function fetchBizVis() {
-  const sess = getActiveSession(); if(!sess) return;
-  (sess.members||[]).forEach(m => {
-    if (!m.area || sBizFetched[m.id]) return;
-    const lats=m.area.map(c=>c[0]),lngs=m.area.map(c=>c[1]);
-    const s=Math.min(...lats),n=Math.max(...lats),w=Math.min(...lngs),e=Math.max(...lngs);
-    sBizFetched[m.id]=true;
-    const q=`[out:json][timeout:20];(node["amenity"](${s},${w},${n},${e});node["shop"](${s},${w},${n},${e});node["office"](${s},${w},${n},${e}););out center;`;
-    fetch('https://overpass-api.de/api/interpreter',{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'},signal:AbortSignal.timeout(15000)})
-    .then(r=>r.json()).then(data=>{
-      (data.elements||[]).forEach(el=>{
-        const tags=el.tags||{};const lat=el.lat||(el.center&&el.center.lat);const lng=el.lon||(el.center&&el.center.lon);
-        if(!lat||!lng)return;
-        const icon=L.divIcon({html:`<div style="font-size:17px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.2))">🏭</div>`,iconSize:[20,20],iconAnchor:[10,16],className:''});
-        const lm=L.marker([lat,lng],{icon,zIndexOffset:400}).bindPopup(`<div style="padding:10px 12px"><b>🏭 ${tags.name||'施設'}</b><br><span style="background:#fee2e2;color:#dc2626;border-radius:99px;padding:2px 8px;font-size:10px;font-weight:600">⛔ 除外</span></div>`,{maxWidth:180});
-        sBizLayers.push(lm);
-        if(smap.getZoom()>=BIZ_Z)lm.addTo(smap);
-      });
-    }).catch(()=>{sBizFetched[m.id]=false;});
-  });
-}
-
-// ============================================================
-// GPS
-// ============================================================
-// ── OSMから集合住宅を自動取得して集合住宅仕様ピンに追加 ──────
-let osmAptFetched = false;
-
-async function fetchOsmApartments() {
-  if (osmAptFetched) return;
-  const sess = getActiveSession(); if (!sess) return;
-
-  // 全エリアのbboxを統合
-  const allLats = [], allLngs = [];
-  (sess.members||[]).forEach(m => {
-    if (!m.area) return;
-    m.area.forEach(c => { allLats.push(c[0]); allLngs.push(c[1]); });
-  });
-  if (!allLats.length) return;
-
-  const s = Math.min(...allLats), n = Math.max(...allLats);
-  const w = Math.min(...allLngs), e = Math.max(...allLngs);
-
-  osmAptFetched = true;
-
-  // 集合住宅（apartments/residential）をOverpassで取得
-  const q = `[out:json][timeout:30];
-(
-  way["building"="apartments"](${s},${w},${n},${e});
-  way["building"="residential"](${s},${w},${n},${e});
-  way["building"="detached"](${s},${w},${n},${e});
-  node["building"="apartments"](${s},${w},${n},${e});
-);
-out center;`;
-
-  try {
-    const res = await fetch('https://overpass-api.de/api/interpreter', {
-      method: 'POST',
-      body: 'data=' + encodeURIComponent(q),
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      signal: AbortSignal.timeout(28000)
-    });
-    const data = await res.json();
-    const elements = data.elements || [];
-
-    let addedCount = 0;
-    elements.forEach(el => {
-      const lat = el.lat || (el.center && el.center.lat);
-      const lng = el.lon || (el.center && el.center.lon);
-      if (!lat || !lng) return;
-
-      const tags = el.tags || {};
-      const name = tags.name || tags['addr:block_number']
-        ? (tags.name || '集合住宅')
-        : null;
-
-      // 既存の固定・動的Aptと重複チェック（50m以内）
-      const allExisting = [...APARTMENTS, ...dynamicApts];
-      const isDup = allExisting.some(a => {
-        const dlat = a.lat - lat, dlng = a.lng - lng;
-        return Math.sqrt(dlat*dlat + dlng*dlng) < 0.0005; // 約50m
-      });
-      if (isDup) return;
-
-      // 名前がある建物だけ追加（無名建物が多すぎる場合の絞り込み）
-      if (!name) return;
-
-      const aptId = 'osm_' + el.id;
-      // 既に動的Aptに追加済みならスキップ
-      if (dynamicApts.find(a => a.id === aptId)) return;
-
-      const units = parseInt(tags['building:units'] || tags['building:levels'] || 0) || 0;
-      const apt = {
-        id: aptId,
-        name,
-        addr: tags['addr:full'] || `${tags['addr:city']||''}${tags['addr:street']||''}${tags['addr:housenumber']||''}` || `${lat.toFixed(5)}, ${lng.toFixed(5)}`,
-        lat, lng,
-        units: units || '?',
-        defaultQty: units || 30,
-        dynamic: true,
-        fromOsm: true
-      };
-
-      dynamicApts.push(apt);
-      addDynamicAptMarker(apt);
-      addedCount++;
-    });
-
-    if (addedCount > 0) {
-      saveDynamicApts();
-      console.log(`OSM集合住宅: ${addedCount}件追加`);
-    }
-  } catch(e) {
-    osmAptFetched = false; // 失敗したら再試行可能に
-    console.warn('OSM集合住宅取得失敗:', e);
-  }
-}
-
-function startGPS() {
-  if(!navigator.geolocation)return;
-  navigator.geolocation.watchPosition(pos=>{
-    const{latitude:lat,longitude:lng,accuracy}=pos.coords;
-    const ll=L.latLng(lat,lng);
-    if(!gpsM){
-      gpsC=L.circle(ll,{radius:accuracy,color:'#0071e3',fillColor:'#0071e3',fillOpacity:0.08,weight:1}).addTo(smap);
-      gpsM=L.marker(ll,{icon:arrowIcon(gpsH),zIndexOffset:9000}).addTo(smap);
-    }else{gpsM.setLatLng(ll);gpsC.setLatLng(ll).setRadius(accuracy);}
-    updateArrow();
-    const sess=getActiveSession(); if(!sess)return;
-    const mid=sess.members[myIdx]?.id;
-    if(mid) {
-      // upsert: session+member_idの組み合わせで上書き
-      fetch(`${SB}/rest/v1/gps_positions`, {
-        method: 'POST',
-        headers: {
-          'apikey': KEY,
-          'Content-Type': 'application/json',
-          'Prefer': 'resolution=merge-duplicates,return=minimal'
-        },
-        body: JSON.stringify({ session: sess.id, member_id: mid, lat, lng })
-      }).catch(() => {});
-    }
-  },()=>{},{enableHighAccuracy:true,maximumAge:3000,timeout:15000});
-  const h=e=>{gpsH=e.webkitCompassHeading??(e.alpha!=null?(360-e.alpha):null);updateArrow();};
-  if(typeof DeviceOrientationEvent!=='undefined'){
-    typeof DeviceOrientationEvent.requestPermission==='function'
-      ?document.getElementById('gps-btn').addEventListener('click',()=>{DeviceOrientationEvent.requestPermission().then(r=>{if(r==='granted')window.addEventListener('deviceorientation',h);});},{once:true})
-      :window.addEventListener('deviceorientation',h);
-  }
-}
-function arrowIcon(h){
-  const has=h!=null;
-  return L.divIcon({
-    html:has?`<div style="width:38px;height:38px;position:relative;display:flex;align-items:center;justify-content:center">
-        <div style="position:absolute;inset:0;border-radius:50%;background:rgba(0,113,227,.12);animation:gp 2s infinite"></div>
-        <svg viewBox="0 0 38 38" style="width:38px;height:38px;transform:rotate(${h}deg)">
-          <circle cx="19" cy="19" r="11" fill="#0071e3" stroke="#fff" stroke-width="2.5"/>
-          <polygon points="19,3 26,15 19,11 12,15" fill="#003d82" stroke="#fff" stroke-width="1"/>
-        </svg></div><style>@keyframes gp{0%,100%{transform:scale(1);opacity:.8}50%{transform:scale(1.6);opacity:.2}}</style>`
-      :`<div style="width:34px;height:34px;position:relative;display:flex;align-items:center;justify-content:center">
-          <div style="position:absolute;inset:0;border-radius:50%;background:rgba(0,113,227,.12);animation:gp 2s infinite"></div>
-          <div style="width:18px;height:18px;border-radius:50%;background:#0071e3;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,113,227,.4)"></div></div>
-        <style>@keyframes gp{0%,100%{transform:scale(1);opacity:.8}50%{transform:scale(1.6);opacity:.2}}</style>`,
-    iconSize:[38,38],iconAnchor:[19,19],className:''
-  });
-}
-function updateArrow(){if(gpsM)gpsM.setIcon(arrowIcon(gpsH));}
-function centerGPS(){if(gpsM)smap.setView(gpsM.getLatLng(),17);}
-
-// ============================================================
-// Stat
-// ============================================================
-function showStat() {
-  const sess=getActiveSession(); if(!sess)return;
-  let td=0;
-
-  const rows=(sess.members||[]).map((m,i)=>{
-    const markerDone=sMarkers[i]?sMarkers[i].length:0;
-    const aptDone = aptDoneForMember(i);
-    const done = markerDone + aptDone;
-    const rem=m.target?Math.max(0,m.target-done):'?';
-    const pct=m.target?Math.round(done/m.target*100):0;
-    td+=done;
-    return`<div class="srow">
-      <span class="sname2"><span class="sdot2" style="background:${m.color}"></span>${TI[m.transport]} ${m.name}</span>
-      <span style="text-align:right"><span style="font-size:14px;font-weight:700">残${rem}件</span><br><span style="font-size:11px;color:var(--text2)">${done}/${m.target||'?'}件(${pct}%)</span></span>
-    </div>`;
-  }).join('');
-  const tt=sess.total||(sess.members||[]).reduce((s,m)=>s+(m.target||0),0);
-  const pct=tt?Math.round(td/tt*100):0;
-  document.getElementById('stat-pct').textContent=pct+'%';
-  document.getElementById('stat-sub').textContent=`配布済み ${td} / 目標 ${tt} 件`;
-  document.getElementById('stat-rows').innerHTML=rows;
-  document.getElementById('stat-modal').classList.add('on');
-}
-function closeStat(){document.getElementById('stat-modal').classList.remove('on');}
-
-// ============================================================
-// CSV
-// ============================================================
-// ── 集合住宅追加モード ────────────────────────────────────
-function toggleAddAptMode() {
-  addAptMode = !addAptMode;
-  const btn = document.getElementById('add-apt-btn');
-  const hint = document.getElementById('add-apt-hint');
-  const normalHint = document.getElementById('s-hint');
-  if (addAptMode) {
-    btn.style.color = '#ff9500';
-    btn.querySelectorAll('svg').forEach(s => s.style.color = '#ff9500');
-    hint.style.display = 'block';
-    normalHint.style.display = 'none';
-    smap.getContainer().style.cursor = 'crosshair';
-  } else {
-    btn.style.color = '';
-    btn.querySelectorAll('svg').forEach(s => s.style.color = '');
-    hint.style.display = 'none';
-    normalHint.style.display = 'block';
-    smap.getContainer().style.cursor = '';
-  }
-}
-
-function openAddAptModal(latlng) {
-  pendingAptLatlng = latlng;
-  // メンバーボタンを生成
-  const sess = getActiveSession();
-  newAptSelectedMemberId = sess?.members[myIdx]?.id || '';
-  newAptSelectedMemberName = sess?.members[myIdx]?.name || '';
-  const sel = document.getElementById('new-apt-member-sel');
-  sel.innerHTML = '';
-  (sess?.members || []).forEach(m => {
-    const btn = document.createElement('button');
-    btn.dataset.mid = m.id;
-    btn.dataset.mname = m.name;
-    const isSelected = m.id === newAptSelectedMemberId;
-    btn.style.cssText = `padding:6px 14px;border-radius:99px;border:2px solid ${m.color};font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:${isSelected?m.color:'#fff'};color:${isSelected?'#fff':m.color}`;
-    btn.textContent = TI[m.transport] + ' ' + m.name;
-    btn.addEventListener('click', () => {
-      newAptSelectedMemberId = m.id;
-      newAptSelectedMemberName = m.name;
-      sel.querySelectorAll('button').forEach(b => {
-        const bm = sess.members.find(x => x.id === b.dataset.mid);
-        if (!bm) return;
-        b.style.background = b.dataset.mid === newAptSelectedMemberId ? bm.color : '#fff';
-        b.style.color = b.dataset.mid === newAptSelectedMemberId ? '#fff' : bm.color;
-      });
-    });
-    sel.appendChild(btn);
-  });
-  document.getElementById('new-apt-name').value = '';
-  document.getElementById('new-apt-units').value = '';
-  document.getElementById('new-apt-qty').value = '';
-  document.getElementById('add-apt-modal').classList.add('on');
-
-  // OKボタン
-  const okBtn = document.getElementById('new-apt-ok-btn');
-  const newOk = okBtn.cloneNode(true);
-  okBtn.parentNode.replaceChild(newOk, okBtn);
-  newOk.addEventListener('click', confirmAddApt);
-}
-
-function closeAddAptModal() {
-  document.getElementById('add-apt-modal').classList.remove('on');
-  pendingAptLatlng = null;
-}
-
-async function confirmAddApt() {
-  const name = document.getElementById('new-apt-name').value.trim();
-  if (!name) { document.getElementById('new-apt-name').style.borderColor='#ff3b30'; return; }
-  const units = parseInt(document.getElementById('new-apt-units').value) || 0;
-  const qty   = parseInt(document.getElementById('new-apt-qty').value) || 0;
-  if (!qty) { document.getElementById('new-apt-qty').style.borderColor='#ff3b30'; return; }
-
-  const apt = {
-    id: 'dyn_' + Date.now(),
-    name, units, defaultQty: qty,
-    addr: `${pendingAptLatlng.lat.toFixed(5)}, ${pendingAptLatlng.lng.toFixed(5)}`,
-    lat: pendingAptLatlng.lat,
-    lng: pendingAptLatlng.lng,
-    dynamic: true
-  };
-
-  // ローディング表示
-  const okBtn = document.getElementById('new-apt-ok-btn');
-  const okBtnOriginalText = okBtn.textContent;
-  okBtn.textContent = '保存中...';
-  okBtn.disabled = true;
-
-  try {
-    // 先にSupabaseへ保存（dynamic_apts→apt_recordsの順。地図のピンより先に確実性を確認）
-    const dynResult = await saveDynamicAptToSupabase(apt);
-    if (!dynResult) throw new Error('集合住宅の保存に失敗しました');
-
-    const aptResult = await saveAptToSupabase(apt, qty, newAptSelectedMemberId, newAptSelectedMemberName);
-    if (!aptResult) throw new Error('配布記録の保存に失敗しました');
-
-    // 保存に成功したらローカル状態・地図に反映
-    aptRecords[apt.id] = {
-      qty, done: true,
-      memberId: newAptSelectedMemberId,
-      memberName: newAptSelectedMemberName,
-      ts: Date.now()
+/* =========================================================================
+   Core : 純粋関数のみ。DOM・ネットワークに依存しない（テスト対象）
+   ========================================================================= */
+const Core = {
+
+  /** 2点間の大圏距離(km) */
+  haversineKm(a, b){
+    const R = 6371, r = Math.PI/180;
+    const dLat = (b.lat-a.lat)*r, dLng = (b.lng-a.lng)*r;
+    const s = Math.sin(dLat/2)**2 + Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dLng/2)**2;
+    return 2*R*Math.asin(Math.min(1, Math.sqrt(s)));
+  },
+
+  /** 車の費用計算。金額は円単位で四捨五入 */
+  carCost({distanceKm, fuelEff, fuelPrice, tollOneWay=0, companyRate=null, roundTrip=true}){
+    const mul  = roundTrip ? 2 : 1;
+    const dist = distanceKm * mul;
+    const fuel = (fuelEff > 0) ? Math.round(distanceKm / fuelEff * fuelPrice) * mul : 0;
+    const toll = Math.round(tollOneWay) * mul;
+    const company = (companyRate != null && companyRate > 0) ? Math.round(dist * companyRate) : null;
+    return {
+      distanceTotal: Math.round(dist*10)/10,
+      fuel, toll,
+      total: fuel + toll,
+      company,
+      diff: (company != null) ? company - (fuel + toll) : null
     };
-    dynamicApts.push(apt);
-    saveDynamicApts();
-    saveAptRecords();
-    addDynamicAptMarker(apt);
+  },
 
-    closeAddAptModal();
-    toggleAddAptMode();
-    updateAll();
-    updateAptBadge();
-  } catch(e) {
-    console.error('集合住宅追加エラー:', e);
-    alert('保存に失敗しました。\n\n' + e.message + '\n\n通信環境を確認して、もう一度お試しください。');
-  } finally {
-    okBtn.textContent = okBtnOriginalText;
-    okBtn.disabled = false;
+  /** 電車の費用計算 */
+  transitCost({fareOneWay=0, roundTrip=true}){
+    const mul = roundTrip ? 2 : 1;
+    return { fare: Math.round(fareOneWay)*mul, total: Math.round(fareOneWay)*mul };
+  },
+
+  /** 徒歩・自転車の所要時間概算(分)。道路距離から速度モデルで算出 */
+  estimateMinutes(distanceKm, mode){
+    const kmh = (mode === 'walk') ? 4.8 : 15;
+    return Math.max(1, Math.round(distanceKm / kmh * 60));
+  },
+
+  /** 国土地理院APIレスポンス → 共通候補形式 */
+  normalizeGsi(json){
+    if (!Array.isArray(json)) return [];
+    return json.map(f => {
+      const c = f && f.geometry && f.geometry.coordinates;
+      if (!Array.isArray(c) || c.length < 2) return null;
+      const lng = Number(c[0]), lat = Number(c[1]);
+      if (!isFinite(lat) || !isFinite(lng)) return null;
+      const title = (f.properties && f.properties.title) ? String(f.properties.title) : '';
+      if (!title) return null;
+      return { lat, lng, address: title, source: '地理院' };
+    }).filter(Boolean);
+  },
+
+  /** Nominatimレスポンス → 共通候補形式 */
+  normalizeNominatim(json){
+    if (!Array.isArray(json)) return [];
+    return json.map(f => {
+      const lat = Number(f.lat), lng = Number(f.lon);
+      if (!isFinite(lat) || !isFinite(lng)) return null;
+      const name = f.display_name ? String(f.display_name).replace(/, 日本$/, '') : '';
+      if (!name) return null;
+      return { lat, lng, address: name, source: 'OSM' };
+    }).filter(Boolean);
+  },
+
+  /** 候補の重複排除。約100m以内の同一地点は1件に丸める */
+  dedupe(list){
+    const out = [];
+    for (const c of list){
+      const dup = out.some(o => Math.abs(o.lat-c.lat) < 0.001 && Math.abs(o.lng-c.lng) < 0.001);
+      if (!dup) out.push(c);
+    }
+    return out;
+  },
+
+  /** OSRMレスポンス(geometries=geojson) → ルート形式。座標は[lat,lng]配列で返す */
+  parseOsrm(json){
+    if (!json || json.code !== 'Ok' || !Array.isArray(json.routes) || json.routes.length === 0){
+      throw new Error('ルートが見つかりません');
+    }
+    const r = json.routes[0];
+    const coords = (r.geometry && Array.isArray(r.geometry.coordinates)) ? r.geometry.coordinates : [];
+    return {
+      distanceKm: Math.round(r.distance/100)/10,
+      durationMin: Math.max(1, Math.round(r.duration/60)),
+      path: coords.map(p => [Number(p[1]), Number(p[0])]).filter(p => isFinite(p[0]) && isFinite(p[1])),
+      source: 'osrm'
+    };
+  },
+
+  /** CSV文字列を生成（RFC4180準拠のクォート） */
+  buildCsv(rows){
+    const esc = v => '"' + String(v==null?'':v).replace(/"/g,'""') + '"';
+    return rows.map(r => r.map(esc).join(',')).join('\r\n');
+  },
+
+  /** 履歴レコード → CSV行 */
+  historyToRows(items){
+    const head = ['日付','出発地','訪問先','手段','距離km','所要分','高速料金','ガソリン代','運賃','合計'];
+    const body = items.map(h => [
+      new Date(h.date).toLocaleDateString('ja-JP'),
+      h.origin, h.dest,
+      ({car:'車',transit:'電車',walk:'徒歩',bike:'自転車'})[h.mode] || h.mode,
+      h.distanceKm ?? '', h.durationMin ?? '',
+      h.toll ?? '', h.fuel ?? '', h.fare ?? '', h.total ?? ''
+    ]);
+    return [head, ...body];
+  },
+
+  yen(n){ return (n==null) ? '—' : '¥' + Number(n).toLocaleString('ja-JP'); }
+};
+
+/* =========================================================================
+   Services : ネットワーク層
+   ========================================================================= */
+const Net = {
+  async json(url, opt={}){
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), opt.timeout || 12000);
+    try{
+      const res = await fetch(url, {signal: ctl.signal, headers: opt.headers || {}});
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return await res.json();
+    } finally { clearTimeout(timer); }
   }
+};
+
+const GeoService = {
+  GSI: 'https://msearch.gsi.go.jp/address-search/AddressSearch',
+  NOM: 'https://nominatim.openstreetmap.org/search',
+
+  /** 地理院とNominatimを併用して候補を返す。片方が落ちても継続する */
+  async search(q){
+    const query = String(q||'').trim();
+    if (query.length < 2) return [];
+    const tasks = [
+      Net.json(`${this.GSI}?q=${encodeURIComponent(query)}`).then(Core.normalizeGsi).catch(()=>[]),
+      Net.json(`${this.NOM}?q=${encodeURIComponent(query)}&format=json&limit=5&countrycodes=jp&accept-language=ja`)
+        .then(Core.normalizeNominatim).catch(()=>[])
+    ];
+    const [gsi, nom] = await Promise.all(tasks);
+    return Core.dedupe([...gsi.slice(0,5), ...nom.slice(0,5)]).slice(0,8);
+  },
+
+  async reverse(lat, lng){
+    try{
+      const j = await Net.json(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=ja&zoom=18`);
+      if (j && j.display_name) return String(j.display_name).replace(/, 日本$/,'');
+    }catch(e){}
+    return `緯度${lat.toFixed(5)} 経度${lng.toFixed(5)}`;
+  }
+};
+
+const RouteService = {
+  BASE: 'https://router.project-osrm.org/route/v1',
+
+  /** OSRM公開サーバは車プロファイルのみ稼働。徒歩・自転車は道路距離から速度換算する */
+  async route(from, to, mode, avoidToll){
+    const coords = `${from.lng},${from.lat};${to.lng},${to.lat}`;
+    const url = `${this.BASE}/driving/${coords}?overview=full&geometries=geojson&alternatives=false&steps=false`;
+    try{
+      const json = await Net.json(url);
+      const r = Core.parseOsrm(json);
+      if (mode === 'walk' || mode === 'bike') r.source = 'osrm-est';
+      if (avoidToll) r.avoidTollRequested = true;
+      return r;
+    }catch(e){
+      // 経路探索が失敗した場合は直線距離に迂回係数1.3を掛けた概算にフォールバック
+      const straight = Core.haversineKm(from, to);
+      const km = Math.round(straight * 1.3 * 10)/10;
+      const spd = {car:32, transit:32, walk:4.8, bike:15}[mode] || 32;
+      return {
+        distanceKm: km,
+        durationMin: Math.max(1, Math.round(km/spd*60)),
+        path: [[from.lat,from.lng],[to.lat,to.lng]],
+        source: 'fallback',
+        error: e.message
+      };
+    }
+  }
+};
+
+const LinkBuilder = {
+  toll(){ return 'https://www.driveplaza.com/dp/SearchTop'; },
+  transit(from, to){
+    return `https://transit.yahoo.co.jp/search/result?from=${encodeURIComponent(from||'')}&to=${encodeURIComponent(to||'')}`;
+  }
+};
+
+/* =========================================================================
+   Store : LocalStorage
+   ========================================================================= */
+class Store {
+  constructor(key, init){ this.key = key; this.init = init; }
+  // structuredClone は古いブラウザで未実装のため使用しない
+  clone(o){ return JSON.parse(JSON.stringify(o)); }
+  get(){
+    try{ const v = localStorage.getItem(this.key); return v ? JSON.parse(v) : this.clone(this.init); }
+    catch(e){ return this.clone(this.init); }
+  }
+  set(v){ try{ localStorage.setItem(this.key, JSON.stringify(v)); }catch(e){} }
+}
+const cfgStore  = new Store('tc2_cfg',  {eff:12, price:175, rate:null, round:true, avoidToll:false});
+const histStore = new Store('tc2_hist', []);
+const favStore  = new Store('tc2_fav',  []);
+
+/* =========================================================================
+   State : 単一の真実。UIはここから描画する
+   ========================================================================= */
+const S = {
+  mode: 'car',
+  origin: null,      // {lat,lng,address}
+  dest: null,
+  route: null,       // {distanceKm,durationMin,path,source}
+  tollOneWay: 0,
+  fareOneWay: 0,
+  transfers: 0,
+  listTab: 'hist',
+  cfg: cfgStore.get()
+};
+
+/* =========================================================================
+   UI helpers
+   ========================================================================= */
+const $ = id => document.getElementById(id);
+let toastTimer = null;
+function toast(msg, ng){
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = 'toast on' + (ng ? ' ng' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=> t.classList.remove('on'), 3800);
+}
+function setStatus(el, kind, text){
+  el.className = 'status ' + kind;
+  el.innerHTML = '<span class="dot"></span><span></span>';
+  el.lastElementChild.textContent = text;
 }
 
-async function saveDynamicAptToSupabase(apt) {
-  const sess = getActiveSession();
-  if (!sess) { console.error('セッションが見つかりません'); return false; }
-  const body = {
-    apt_id: apt.id, session_id: sess.id, name: apt.name,
-    lat: apt.lat, lng: apt.lng, units: apt.units, default_qty: apt.defaultQty
+/* =========================================================================
+   Map
+   ========================================================================= */
+const MapView = {
+  map:null, line:null, m1:null, m2:null, ok:false,
+  init(){
+    if (this.map || typeof L === 'undefined') return;
+    try{
+      this.map = L.map('map', {scrollWheelZoom:false}).setView([35.925, 139.485], 10);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        {attribution:'© OpenStreetMap', maxZoom:19}).addTo(this.map);
+      this.ok = true;
+    }catch(e){ this.ok = false; }
+  },
+  draw(from, to, path){
+    if (!this.map) this.init();
+    if (!this.map) return;
+    [this.line,this.m1,this.m2].forEach(l => { if (l) this.map.removeLayer(l); });
+    this.m1 = L.marker([from.lat,from.lng]).addTo(this.map).bindPopup('出発地');
+    this.m2 = L.marker([to.lat,to.lng]).addTo(this.map).bindPopup('訪問先');
+    const pts = (path && path.length > 1) ? path : [[from.lat,from.lng],[to.lat,to.lng]];
+    this.line = L.polyline(pts, {color:'#111', weight:4, opacity:.85}).addTo(this.map);
+    this.map.fitBounds(this.line.getBounds(), {padding:[40,40]});
+  }
+};
+
+/* =========================================================================
+   Autocomplete
+   ========================================================================= */
+class Picker {
+  constructor(input, box, status, onPick){
+    this.input=input; this.box=box; this.status=status; this.onPick=onPick;
+    this.timer=null; this.idx=-1; this.items=[]; this.seq=0;
+    input.addEventListener('input', ()=> this.onInput());
+    input.addEventListener('keydown', e=> this.onKey(e));
+    input.addEventListener('blur', ()=> setTimeout(()=> this.close(), 200));
+    input.addEventListener('focus', ()=>{ if(this.items.length) this.box.classList.add('on'); });
+  }
+  onInput(){
+    clearTimeout(this.timer);
+    this.seq++;                              // 進行中の検索結果を無効化
+    this.onPick(null);                       // 手入力で確定を解除
+    setStatus(this.status,'wait','未確定');
+    const q = this.input.value.trim();
+    if (q.length < 2){ this.close(); return; }
+    setStatus(this.status,'wait','検索中…');
+    this.timer = setTimeout(()=> this.run(q), 600);
+  }
+  async run(q){
+    const my = ++this.seq;
+    try{
+      const list = await GeoService.search(q);
+      if (my !== this.seq) return;           // 古い検索の結果は破棄
+      this.items = list;
+      this.render();
+      if (!list.length) setStatus(this.status,'ng','候補が見つかりません。番地まで入力するか別の表記でお試しください');
+      else setStatus(this.status,'wait','候補から選択してください');
+    }catch(e){
+      if (my !== this.seq) return;
+      setStatus(this.status,'ng','検索に失敗しました：'+e.message);
+    }
+  }
+  /** 外部（検索ボタン・お気に入り・履歴）から確定させる。保留中の検索を確実に打ち切る */
+  setConfirmed(loc){
+    clearTimeout(this.timer);
+    this.seq++;
+    this.items=[]; this.close();
+    this.input.value = loc.address;
+    this.onPick(loc);
+    setStatus(this.status,'ok','確定：'+loc.address);
+  }
+  /** 外部から失敗状態にする。同じく保留中の検索を打ち切る */
+  setFailed(msg){
+    clearTimeout(this.timer);
+    this.seq++;
+    this.items=[]; this.close();
+    setStatus(this.status,'ng',msg);
+  }
+  render(){
+    this.box.innerHTML='';
+    if (!this.items.length){
+      this.box.innerHTML='<div class="cand-empty">候補なし</div>';
+      this.box.classList.add('on'); return;
+    }
+    this.items.forEach((c,i)=>{
+      const d=document.createElement('div');
+      d.className='cand-item';
+      d.innerHTML='<span></span><span class="cand-src"></span>';
+      d.firstElementChild.textContent = c.address;
+      d.lastElementChild.textContent = c.source;
+      d.addEventListener('mousedown', e=>{ e.preventDefault(); this.pick(i); });
+      this.box.appendChild(d);
+    });
+    this.box.classList.add('on'); this.idx=-1;
+  }
+  pick(i){
+    const c=this.items[i]; if(!c) return;
+    this.input.value = c.address;
+    this.onPick(c);
+    setStatus(this.status,'ok','確定：'+c.address);
+    this.close();
+  }
+  onKey(e){
+    const n=this.box.querySelectorAll('.cand-item');
+    if(!n.length) return;
+    if(e.key==='ArrowDown'){e.preventDefault(); this.idx=Math.min(this.idx+1,n.length-1); this.mark(n);}
+    else if(e.key==='ArrowUp'){e.preventDefault(); this.idx=Math.max(this.idx-1,0); this.mark(n);}
+    else if(e.key==='Enter'){ if(this.idx>=0){e.preventDefault(); this.pick(this.idx);} }
+    else if(e.key==='Escape'){ this.close(); }
+  }
+  mark(n){ n.forEach((el,i)=> el.classList.toggle('sel', i===this.idx)); }
+  close(){ this.box.classList.remove('on'); this.idx=-1; }
+}
+
+/* Pickerインスタンスの保持（外部から確定状態を操作するため） */
+const P = { origin:null, dest:null };
+
+/* =========================================================================
+   Result rendering : 状態から一方向に描画する
+   ========================================================================= */
+function renderResult(){
+  const box = $('result');
+  if (!S.route){ box.innerHTML=''; return; }
+  const r = S.route, c = S.cfg;
+  const rt = c.round;
+  const srcLabel = {osrm:'道路ルート', 'osrm-est':'道路距離+速度換算', fallback:'直線距離からの概算', manual:'手入力'}[r.source] || '';
+  let h = '';
+
+  if (S.mode === 'car'){
+    const k = Core.carCost({distanceKm:r.distanceKm, fuelEff:c.eff, fuelPrice:c.price,
+                            tollOneWay:S.tollOneWay, companyRate:c.rate, roundTrip:rt});
+    h = `<div class="card">
+      <h3><span>車</span><span class="src-tag">${srcLabel}</span></h3>
+      <div class="line"><span class="k">片道距離</span><span class="v">${r.distanceKm.toFixed(1)} km</span></div>
+      <div class="line"><span class="k">片道所要</span><span class="v">${r.durationMin} 分</span></div>
+      <div class="line"><span class="k">${rt?'往復':'片道'}距離</span><span class="v">${k.distanceTotal.toFixed(1)} km</span></div>
+      <div class="sep"></div>
+      <div class="line">
+        <span class="k">高速料金（片道）</span>
+        <input type="number" id="inToll" min="0" step="10" value="${S.tollOneWay}">
+        <a class="ext" href="${LinkBuilder.toll()}" target="_blank" rel="noopener">ドラぷら↗</a>
+      </div>
+      <div class="line"><span class="k">ガソリン代（${rt?'往復':'片道'}）</span><span class="v">${Core.yen(k.fuel)}</span></div>
+      <div class="line"><span class="k">高速料金（${rt?'往復':'片道'}）</span><span class="v">${Core.yen(k.toll)}</span></div>
+      <div class="total"><div class="line"><span class="k">総移動コスト</span><span class="v">${Core.yen(k.total)}</span></div></div>
+      ${k.company!=null ? `<div class="line" style="margin-top:12px"><span class="k">会社支給（${c.rate}円/km）</span><span class="v">${Core.yen(k.company)}</span></div>
+      <div class="line"><span class="k">過不足</span><span class="v">${k.diff>=0?'+':''}${Core.yen(k.diff)}</span></div>` : ''}
+      <div class="note">高速料金は自動取得していません。ドラぷらで確認した金額を入力してください。${r.source==='fallback'?'<br><strong>経路探索に失敗したため直線距離×1.3の概算です。</strong>':''}</div>
+      <div class="acts"><button class="act" id="btnSave">履歴に保存</button><button class="act" id="btnFavAdd">訪問先を登録</button></div>
+    </div>`;
+  }
+
+  else if (S.mode === 'transit'){
+    const k = Core.transitCost({fareOneWay:S.fareOneWay, roundTrip:rt});
+    h = `<div class="card">
+      <h3><span>電車</span><span class="src-tag">運賃は手入力</span></h3>
+      <div class="line"><span class="k">直線距離</span><span class="v">${Core.haversineKm(S.origin,S.dest).toFixed(1)} km</span></div>
+      <div class="sep"></div>
+      <div class="line">
+        <span class="k">運賃（片道）</span>
+        <input type="number" id="inFare" min="0" step="10" value="${S.fareOneWay}">
+        <a class="ext" href="${LinkBuilder.transit(S.origin.address, S.dest.address)}" target="_blank" rel="noopener">乗換案内↗</a>
+      </div>
+      <div class="line"><span class="k">乗換回数</span><input type="number" id="inTrans" min="0" step="1" value="${S.transfers}"></div>
+      <div class="total"><div class="line"><span class="k">運賃${rt?'往復':'片道'}</span><span class="v">${Core.yen(k.total)}</span></div></div>
+      <div class="note">電車の所要時間・運賃・乗換回数は乗換案内で確認して入力してください。無料の経路探索エンジンは鉄道ダイヤに対応していないため自動取得できません。</div>
+      <div class="acts"><button class="act" id="btnSave">履歴に保存</button><button class="act" id="btnFavAdd">訪問先を登録</button></div>
+    </div>`;
+  }
+
+  else {
+    const label = S.mode==='walk' ? '徒歩' : '自転車';
+    // 所要時間はタブ切替に追従させるため、描画時に距離とモードから導出する
+    const mins = (r.source==='manual' && r.userMin) ? r.userMin : Core.estimateMinutes(r.distanceKm, S.mode);
+    h = `<div class="card">
+      <h3><span>${label}</span><span class="src-tag">${srcLabel}</span></h3>
+      <div class="line"><span class="k">片道距離</span><span class="v">${r.distanceKm.toFixed(1)} km</span></div>
+      <div class="line"><span class="k">片道所要</span><span class="v">約 ${mins} 分</span></div>
+      <div class="line"><span class="k">${rt?'往復':'片道'}距離</span><span class="v">${(r.distanceKm*(rt?2:1)).toFixed(1)} km</span></div>
+      <div class="note">道路距離をもとに${S.mode==='walk'?'時速4.8km':'時速15km'}で換算した目安です。信号待ち・高低差は含みません。</div>
+      <div class="acts"><button class="act" id="btnSave">履歴に保存</button><button class="act" id="btnFavAdd">訪問先を登録</button></div>
+    </div>`;
+  }
+
+  box.innerHTML = h;
+
+  const t = $('inToll');
+  if (t) t.addEventListener('input', ()=>{ S.tollOneWay = Number(t.value)||0; renderResult(); t2focus('inToll'); });
+  const f = $('inFare');
+  if (f) f.addEventListener('input', ()=>{ S.fareOneWay = Number(f.value)||0; renderResult(); t2focus('inFare'); });
+  const tr = $('inTrans');
+  if (tr) tr.addEventListener('input', ()=>{ S.transfers = Number(tr.value)||0; });
+  const sv = $('btnSave'); if (sv) sv.addEventListener('click', saveHistory);
+  const fa = $('btnFavAdd'); if (fa) fa.addEventListener('click', ()=>{
+    if(!S.dest){ toast('訪問先が未確定です', true); return; }
+    $('favAddr').value = S.dest.address; $('favLabel').value=''; $('mdAddFav').classList.add('on');
+  });
+}
+// 再描画で入力欄がフォーカスを失うのを防ぐ
+function t2focus(id){ const e=$(id); if(e){ e.focus(); const v=e.value; e.value=''; e.value=v; } }
+
+/* =========================================================================
+   履歴・お気に入り
+   ========================================================================= */
+function saveHistory(){
+  if (!S.route){ toast('先に計算してください', true); return; }
+  const c=S.cfg, rt=c.round;
+  const rec = {
+    id: Date.now(), date: new Date().toISOString(),
+    origin: S.origin ? S.origin.address : '(手入力)',
+    dest:   S.dest   ? S.dest.address   : '(手入力)',
+    mode: S.mode,
+    distanceKm: S.route.distanceKm, durationMin: S.route.durationMin,
+    originLat:S.origin?S.origin.lat:null, originLng:S.origin?S.origin.lng:null,
+    destLat:S.dest?S.dest.lat:null,       destLng:S.dest?S.dest.lng:null
   };
-  try {
-    const checkR = await fetch(`${SB}/rest/v1/dynamic_apts?apt_id=eq.${encodeURIComponent(apt.id)}&select=id`, {
-      headers: { 'apikey': KEY, 'Content-Type': 'application/json' }
-    });
-    const existing = checkR.ok ? await checkR.json() : [];
+  if (S.mode==='car'){
+    const k = Core.carCost({distanceKm:S.route.distanceKm,fuelEff:c.eff,fuelPrice:c.price,
+                            tollOneWay:S.tollOneWay,companyRate:c.rate,roundTrip:rt});
+    rec.toll=k.toll; rec.fuel=k.fuel; rec.total=k.total;
+  } else if (S.mode==='transit'){
+    const k = Core.transitCost({fareOneWay:S.fareOneWay,roundTrip:rt});
+    rec.fare=k.fare; rec.total=k.total;
+  } else { rec.total=0; }
 
-    let r;
-    if (Array.isArray(existing) && existing.length > 0) {
-      r = await fetch(`${SB}/rest/v1/dynamic_apts?apt_id=eq.${encodeURIComponent(apt.id)}`, {
-        method: 'PATCH',
-        headers: { 'apikey': KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-        body: JSON.stringify(body)
-      });
-    } else {
-      r = await fetch(`${SB}/rest/v1/dynamic_apts`, {
-        method: 'POST',
-        headers: { 'apikey': KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-        body: JSON.stringify(body)
-      });
-    }
-    if (!r.ok) {
-      const t = await r.text().catch(()=>'');
-      console.error('動的集合住宅保存失敗:', r.status, t);
-      setSyncDot('err');
-      return false;
-    }
+  const list = histStore.get(); list.unshift(rec);
+  histStore.set(list.slice(0,100));
+  renderList(); toast('履歴に保存しました');
+}
 
-    // 保存後に本当に反映されたか検証（RLS等で書き込みだけ200が返り実際は反映されないケースの対策）
-    const verifyR = await fetch(`${SB}/rest/v1/dynamic_apts?apt_id=eq.${encodeURIComponent(apt.id)}&select=apt_id`, {
-      headers: { 'apikey': KEY, 'Content-Type': 'application/json' }
-    });
-    const verifyData = verifyR.ok ? await verifyR.json() : [];
-    if (!Array.isArray(verifyData) || verifyData.length === 0) {
-      console.error('動的集合住宅: 保存後の検証に失敗（テーブル未作成またはRLS設定を確認してください）');
-      setSyncDot('err');
-      return false;
-    }
-
-    setSyncDot('ok');
-    return true;
-  } catch(e) {
-    console.error('動的集合住宅保存エラー:', e);
-    setSyncDot('err');
-    return false;
+function renderList(){
+  const body=$('listBody'), acts=$('listActs');
+  if (S.listTab==='hist'){
+    const list=histStore.get();
+    acts.style.display = list.length ? 'flex' : 'none';
+    if(!list.length){ body.innerHTML='<div class="empty">履歴はまだありません</div>'; return; }
+    body.innerHTML = list.map(h=>`
+      <div class="item">
+        <div class="item-main" data-rid="${h.id}">
+          <div class="item-t">${esc(h.origin)} → ${esc(h.dest)}</div>
+          <div class="item-s">${new Date(h.date).toLocaleDateString('ja-JP')}・${({car:'車',transit:'電車',walk:'徒歩',bike:'自転車'})[h.mode]}・${h.distanceKm??'—'}km・${Core.yen(h.total)}</div>
+        </div>
+        <button class="item-x" data-del="${h.id}">✕</button>
+      </div>`).join('');
+    body.querySelectorAll('[data-del]').forEach(b=> b.addEventListener('click',()=>{
+      histStore.set(histStore.get().filter(x=>x.id!==Number(b.dataset.del))); renderList();
+    }));
+    body.querySelectorAll('[data-rid]').forEach(b=> b.addEventListener('click',()=> reuse(Number(b.dataset.rid))));
+  } else {
+    const list=favStore.get();
+    acts.style.display='none';
+    if(!list.length){ body.innerHTML='<div class="empty">お気に入りはまだありません</div>'; return; }
+    body.innerHTML = list.map(f=>`
+      <div class="item">
+        <div class="item-main" data-fid="${f.id}">
+          <div class="item-t">${esc(f.label)}</div>
+          <div class="item-s">${esc(f.address)}</div>
+        </div>
+        <button class="item-x" data-fdel="${f.id}">✕</button>
+      </div>`).join('');
+    body.querySelectorAll('[data-fdel]').forEach(b=> b.addEventListener('click',()=>{
+      favStore.set(favStore.get().filter(x=>x.id!==Number(b.dataset.fdel))); renderList();
+    }));
+    body.querySelectorAll('[data-fid]').forEach(b=> b.addEventListener('click',()=>{
+      const f=favStore.get().find(x=>x.id===Number(b.dataset.fid)); if(!f) return;
+      P.dest.setConfirmed({lat:f.lat,lng:f.lng,address:f.address});
+      toast('訪問先に設定しました');
+    }));
   }
 }
-
-function addDynamicAptMarker(apt) {
-  const icon = L.divIcon({
-    html: aptIconHtml(apt),
-    iconSize: [140, 36], iconAnchor: [70, 36], popupAnchor: [-60, -36], className: ''
-  });
-  const marker = L.marker([apt.lat, apt.lng], { icon, zIndexOffset: 600 }).addTo(smap);
-  aptMarkers[apt.id] = marker;
-
-  const popup = L.popup({ maxWidth: 240, minWidth: 220, autoPan: true, autoPanPadding: [20, 20], keepInView: true });
-  marker.on('popupopen', () => buildAptPopup(popup, apt, marker));
-  marker.bindPopup(popup);
+function reuse(id){
+  const h=histStore.get().find(x=>x.id===id); if(!h) return;
+  if(h.originLat!=null) P.origin.setConfirmed({lat:h.originLat,lng:h.originLng,address:h.origin});
+  if(h.destLat!=null)    P.dest.setConfirmed({lat:h.destLat,lng:h.destLng,address:h.dest});
+  setMode(h.mode); toast('前回の条件を読み込みました');
 }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
 
-function saveDynamicApts() {
-  try { localStorage.setItem('dynamic_apts_v1', JSON.stringify(dynamicApts)); } catch(e) {}
-}
+/* =========================================================================
+   検索実行
+   ========================================================================= */
+async function doSearch(){
+  const btn=$('btnSearch'), txt=$('btnSearchTxt');
 
-function removeDynamicApt(aptId) {
-  const idx = dynamicApts.findIndex(a => a.id === aptId);
-  if (idx !== -1) dynamicApts.splice(idx, 1);
-  delete aptRecords[aptId];
-  if (aptMarkers[aptId]) { delete aptMarkers[aptId]; }
-  saveDynamicApts();
-  saveAptRecords();
-  updateAll();
-  updateAptBadge();
-  // Supabaseからも削除
-  const sess = getActiveSession(); if (!sess) return;
-  api(`dynamic_apts?apt_id=eq.${aptId}&session_id=eq.${sess.id}`, { method:'DELETE' }).catch(()=>{});
-  api(`apt_records?apt_id=eq.${aptId}&session_id=eq.${sess.id}`, { method:'DELETE' }).catch(()=>{});
-}
-
-async function loadDynamicApts() {
-  try {
-    const raw = localStorage.getItem('dynamic_apts_v1');
-    if (raw) dynamicApts = JSON.parse(raw);
-  } catch(e) {}
-
-  // localStorageから復元した集合住宅も、まだ地図にピンが無ければ描画する
-  dynamicApts.forEach(apt => {
-    if (smap && !aptMarkers[apt.id]) addDynamicAptMarker(apt);
-  });
-
-  const sess = getActiveSession(); if (!sess) return;
-  try {
-    const r = await fetch(`${SB}/rest/v1/dynamic_apts?session_id=eq.${encodeURIComponent(sess.id)}&select=*`, {
-      headers: { 'apikey': KEY, 'Content-Type': 'application/json' }
-    });
-    if (!r.ok) {
-      console.error('dynamic_apts取得失敗:', r.status, await r.text().catch(()=>''));
-      return;
-    }
-    const data = await r.json();
-    if (!Array.isArray(data)) return;
-    console.log(`dynamic_apts取得: ${data.length}件`);
-    data.forEach(d => {
-      // 配列に無ければ追加
-      let apt = dynamicApts.find(a => a.id === d.apt_id);
-      if (!apt) {
-        apt = { id: d.apt_id, name: d.name, lat: d.lat, lng: d.lng, units: d.units, defaultQty: d.default_qty, addr: `${d.lat.toFixed(5)}, ${d.lng.toFixed(5)}`, dynamic: true };
-        dynamicApts.push(apt);
+  // 未確定なら入力文字列から自動解決を試みる
+  for (const [key,inputId,stId,label] of [['origin','inOrigin','stOrigin','出発地'],['dest','inDest','stDest','訪問先']]){
+    if (S[key]) continue;
+    const q = $(inputId).value.trim();
+    if (!q){ toast(label+'を入力してください', true); return; }
+    btn.classList.add('busy'); txt.textContent = label+'を特定中…';
+    try{
+      const list = await GeoService.search(q);
+      if (!list.length){
+        btn.classList.remove('busy'); txt.textContent='ルートを検索';
+        P[key].setFailed('特定できません。候補から選ぶか、下の「距離を手入力」をご利用ください');
+        toast(label+'の住所を特定できませんでした', true); return;
       }
-      // 配列にあっても、地図にピンが無ければ必ず描画する（← リロード後にピンが消えるバグの修正）
-      if (smap && !aptMarkers[apt.id]) addDynamicAptMarker(apt);
-    });
-    saveDynamicApts();
-  } catch(e) {
-    console.error('dynamic_apts取得エラー:', e);
+      P[key].setConfirmed(list[0]);
+    }catch(e){
+      btn.classList.remove('busy'); txt.textContent='ルートを検索';
+      P[key].setFailed('検索に失敗しました。「距離を手入力」もご利用ください：'+e.message);
+      toast('住所検索に失敗しました。「距離を手入力」もご利用ください', true); return;
+    }
+  }
+
+  btn.classList.add('busy'); btn.disabled=true; txt.textContent='ルート探索中…';
+  try{
+    const r = await RouteService.route(S.origin, S.dest, S.mode, S.cfg.avoidToll);
+    S.route = r;
+    MapView.draw(S.origin, S.dest, r.path);
+    renderResult();
+    if (r.source==='fallback') toast('経路探索に失敗したため直線距離からの概算です', true);
+    else toast('ルートを取得しました');
+  }catch(e){
+    toast('検索に失敗しました：'+e.message, true);
+  }finally{
+    btn.classList.remove('busy'); btn.disabled=false; txt.textContent='ルートを検索';
   }
 }
 
-// ── 集合住宅シート ──────────────────────────────────────
-function showAptSheet() {
-  const inner = document.getElementById('apt-list-inner');
-  inner.innerHTML = '';
-  // 固定＋動的の集合住宅を結合して表示
-  const allApts = [...APARTMENTS, ...dynamicApts];
-  allApts.forEach(apt => {
-    const item = document.createElement('div');
-    item.style.cssText = 'display:flex;align-items:center;gap:12px;padding:13px 4px;border-bottom:0.5px solid rgba(0,0,0,.08);cursor:pointer';
+/* =========================================================================
+   接続診断
+   ========================================================================= */
+async function runDiag(){
+  const set=(id,ok,msg)=>{ const e=$(id); e.className = ok?'diag-ok':'diag-ng'; e.textContent = ok?'OK':('NG '+(msg||'')); };
+  ['dgGsi','dgNom','dgOsrm','dgLeaf'].forEach(i=>{ $(i).className='diag-wait'; $(i).textContent='実行中…'; });
+  $('diagNote').textContent='';
 
-    // 左: アイコン
-    const icon = document.createElement('div');
-    icon.style.cssText = 'width:42px;height:42px;border-radius:10px;background:#f5f5f7;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0';
-    icon.textContent = '🏢';
+  try{ const j=await Net.json(`${GeoService.GSI}?q=${encodeURIComponent('東京都千代田区')}`,{timeout:9000});
+       set('dgGsi', Core.normalizeGsi(j).length>0, '応答が空'); }
+  catch(e){ set('dgGsi', false, e.message); }
 
-    // 中: テキスト
-    const info = document.createElement('div');
-    info.style.cssText = 'flex:1;min-width:0';
-    info.innerHTML = `<div style="font-size:14px;font-weight:600;color:#111">${apt.name}</div>
-      <div style="font-size:11px;color:#888;margin-top:2px">${apt.addr}</div>
-      <div style="font-size:11px;color:#888">${apt.units}</div>`;
+  try{ const j=await Net.json(`${GeoService.NOM}?q=${encodeURIComponent('東京駅')}&format=json&limit=1&countrycodes=jp`,{timeout:9000});
+       set('dgNom', Core.normalizeNominatim(j).length>0, '応答が空'); }
+  catch(e){ set('dgNom', false, e.message); }
 
-    // 右: ナビボタン
-    const navBtn = document.createElement('button');
-    navBtn.style.cssText = 'flex-shrink:0;padding:8px 12px;border-radius:99px;border:none;background:#0071e3;color:#fff;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit';
-    navBtn.textContent = '🗺 ナビ';
-    navBtn.addEventListener('click', e => {
-      e.stopPropagation();
-      const url = `https://www.google.com/maps/dir/?api=1&destination=${apt.lat},${apt.lng}&travelmode=driving`;
-      window.open(url, '_blank');
-    });
+  try{ const j=await Net.json(`${RouteService.BASE}/driving/139.767,35.681;139.700,35.690?overview=false`,{timeout:9000});
+       set('dgOsrm', j && j.code==='Ok', 'コード'+(j&&j.code)); }
+  catch(e){ set('dgOsrm', false, e.message); }
 
-    // アイテムタップ → 地図移動してシートを閉じる
-    // 完了済みなら緑ハイライト
-    const rec = aptRecords[apt.id];
-    if (rec && rec.done) {
-      item.style.background = '#f0fdf4';
-      icon.textContent = '✅';
-    }
-    // 配布枚数表示
-    if (rec && rec.qty) {
-      const qtyTag = document.createElement('div');
-      qtyTag.style.cssText = 'font-size:11px;font-weight:700;color:#15803d;margin-top:3px';
-      qtyTag.textContent = `✓ ${rec.qty}枚 配布済み`;
-      info.appendChild(qtyTag);
-    }
+  set('dgLeaf', typeof L !== 'undefined' && MapView.ok, '読込失敗');
 
-    item.addEventListener('click', () => {
-      closeAptSheet();
-      if (smap) smap.setView([apt.lat, apt.lng], 17);
-    });
+  const isFile = location.protocol === 'file:';
+  $('diagNote').textContent = isFile
+    ? 'ファイルを直接開いています（file://）。この状態では外部APIがブラウザにブロックされます。GitHub Pages に置くか、ローカルサーバー経由で開いてください。'
+    : 'NGが出た項目は、通信環境・社内プロキシ・拡張機能のブロックが原因の可能性があります。';
+}
 
-    item.appendChild(icon);
-    item.appendChild(info);
-    item.appendChild(navBtn);
-    inner.appendChild(item);
+/* =========================================================================
+   初期化 : リスナーは一度だけ登録する
+   ========================================================================= */
+function setMode(m){
+  S.mode = m;
+  document.querySelectorAll('#modeTabs .tab').forEach(b=> b.classList.toggle('on', b.dataset.mode===m));
+  if (S.route) renderResult();
+}
+function readCfg(){
+  S.cfg = {
+    eff: Number($('cfgEff').value)||12,
+    price: Number($('cfgPrice').value)||175,
+    rate: $('cfgRate').value==='' ? null : Number($('cfgRate').value),
+    round: $('cfgRound').checked,
+    avoidToll: $('cfgAvoidToll').checked
+  };
+  cfgStore.set(S.cfg);
+  if (S.route) renderResult();
+}
+
+function init(){
+  // 設定を復元
+  const c=S.cfg;
+  $('cfgEff').value=c.eff; $('cfgPrice').value=c.price;
+  $('cfgRate').value = c.rate==null?'':c.rate;
+  $('cfgRound').checked=!!c.round; $('cfgAvoidToll').checked=!!c.avoidToll;
+  ['cfgEff','cfgPrice','cfgRate','cfgRound','cfgAvoidToll'].forEach(id=> $(id).addEventListener('change', readCfg));
+
+  P.origin = new Picker($('inOrigin'), $('candOrigin'), $('stOrigin'), c=>{ S.origin=c; });
+  P.dest   = new Picker($('inDest'),   $('candDest'),   $('stDest'),   c=>{ S.dest=c; });
+
+  $('btnSearch').addEventListener('click', doSearch);
+
+  $('btnGps').addEventListener('click', async ()=>{
+    if(!navigator.geolocation){ toast('この端末は位置情報に対応していません', true); return; }
+    setStatus($('stOrigin'),'wait','現在地を取得中…');
+    navigator.geolocation.getCurrentPosition(async p=>{
+      const lat=p.coords.latitude, lng=p.coords.longitude;
+      const addr= await GeoService.reverse(lat,lng);
+      P.origin.setConfirmed({lat,lng,address:addr});
+      toast('現在地を取得しました');
+    }, err=>{
+      P.origin.setFailed('現在地を取得できません（'+err.message+'）');
+      toast('位置情報の取得に失敗しました', true);
+    }, {enableHighAccuracy:true, timeout:12000});
   });
-  document.getElementById('apt-sheet').classList.add('on');
-}
-function closeAptSheet() {
-  document.getElementById('apt-sheet').classList.remove('on');
+
+  document.querySelectorAll('#modeTabs .tab').forEach(b=> b.addEventListener('click', ()=> setMode(b.dataset.mode)));
+  document.querySelectorAll('#listTabs .tab').forEach(b=> b.addEventListener('click', ()=>{
+    S.listTab=b.dataset.list;
+    document.querySelectorAll('#listTabs .tab').forEach(x=> x.classList.toggle('on', x===b));
+    renderList();
+  }));
+
+  [['accVehicle','accVehicleBody'],['accManual','accManualBody']].forEach(([h,b])=>{
+    $(h).addEventListener('click', ()=>{ $(h).classList.toggle('on'); $(b).classList.toggle('on'); });
+  });
+
+  $('btnManual').addEventListener('click', ()=>{
+    const d=Number($('manDist').value);
+    if(!d || d<=0){ toast('片道距離を入力してください', true); return; }
+    const userMin = Number($('manMin').value) || null;
+    const m = userMin || Core.estimateMinutes(d, (S.mode==='walk'||S.mode==='bike') ? S.mode : 'car');
+    S.route={distanceKm:Math.round(d*10)/10, durationMin:Math.round(m), path:[], source:'manual', userMin};
+    renderResult();
+    toast('手入力の距離で計算しました');
+    $('result').scrollIntoView({behavior:'smooth', block:'start'});
+  });
+
+  $('btnSettings').addEventListener('click', ()=> $('mdSettings').classList.add('on'));
+  $('btnDiag').addEventListener('click', runDiag);
+  document.querySelectorAll('[data-close]').forEach(b=> b.addEventListener('click', ()=> $(b.dataset.close).classList.remove('on')));
+  document.querySelectorAll('.modal').forEach(m=> m.addEventListener('click', e=>{ if(e.target===m) m.classList.remove('on'); }));
+
+  const openFav = which =>{
+    const list=favStore.get();
+    $('mdFavTitle').textContent = which==='o'?'出発地を選ぶ':'訪問先を選ぶ';
+    $('mdFavList').innerHTML = list.length ? list.map(f=>`
+      <div class="item"><div class="item-main" data-pick="${f.id}">
+        <div class="item-t">${esc(f.label)}</div><div class="item-s">${esc(f.address)}</div>
+      </div></div>`).join('') : '<div class="empty">お気に入りはまだありません</div>';
+    $('mdFavList').querySelectorAll('[data-pick]').forEach(b=> b.addEventListener('click', ()=>{
+      const f=list.find(x=>x.id===Number(b.dataset.pick)); if(!f) return;
+      const loc={lat:f.lat,lng:f.lng,address:f.address};
+      if(which==='o') P.origin.setConfirmed(loc); else P.dest.setConfirmed(loc);
+      $('mdFav').classList.remove('on');
+    }));
+    $('mdFav').classList.add('on');
+  };
+  $('btnFavO').addEventListener('click', ()=> openFav('o'));
+  $('btnFavD').addEventListener('click', ()=> openFav('d'));
+
+  $('btnSaveFav').addEventListener('click', ()=>{
+    const label=$('favLabel').value.trim(), addr=$('favAddr').value;
+    if(!label){ toast('表示名を入力してください', true); return; }
+    if(!S.dest){ toast('訪問先が未確定です', true); return; }
+    const list=favStore.get();
+    list.push({id:Date.now(), label, address:addr, lat:S.dest.lat, lng:S.dest.lng});
+    favStore.set(list);
+    $('mdAddFav').classList.remove('on'); renderList(); toast('お気に入りに登録しました');
+  });
+
+  $('btnCsv').addEventListener('click', ()=>{
+    const list=histStore.get();
+    if(!list.length){ toast('履歴がありません', true); return; }
+    const csv='\uFEFF'+Core.buildCsv(Core.historyToRows(list));
+    const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=`交通費_${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=> URL.revokeObjectURL(a.href), 1000);
+    toast('CSVをダウンロードしました');
+  });
+
+  $('btnClearHist').addEventListener('click', ()=>{
+    if(confirm('履歴をすべて削除しますか？')){ histStore.set([]); renderList(); toast('履歴を削除しました'); }
+  });
+
+  MapView.init();
+  renderList();
+
+  if (location.protocol === 'file:'){
+    toast('file:// で開いています。外部APIがブロックされる場合は設定→接続診断をご確認ください', true);
+  }
 }
 
-function doCSV(){
-  const sess=getActiveSession();if(!sess)return;
-  let csv='\uFEFF担当者,緯度,経度\n';
-  (sess.members||[]).forEach((m,i)=>{(sMarkers[i]||[]).forEach(mk=>{csv+=`${m.name},${mk.latlng.lat.toFixed(6)},${mk.latlng.lng.toFixed(6)}\n`;});});
-  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));a.download=`${sess.title||'posting'}.csv`;a.click();
+if (typeof document !== 'undefined' && !globalThis.__TEST__){
+  document.addEventListener('DOMContentLoaded', init);
 }
-
-// ============================================================
-// Confirm modal
-// ============================================================
-function showConfirm(title, msg, cb) {
-  document.getElementById('cf-title').textContent = title;
-  document.getElementById('cf-msg').textContent = msg;
-  // ボタンにイベントを毎回新しく設定
-  const okBtn = document.getElementById('cf-ok-btn');
-  const cancelBtn = document.getElementById('cf-cancel-btn');
-  // 古いイベントを削除するためにcloneNode
-  const newOk = okBtn.cloneNode(true);
-  const newCancel = cancelBtn.cloneNode(true);
-  okBtn.parentNode.replaceChild(newOk, okBtn);
-  cancelBtn.parentNode.replaceChild(newCancel, cancelBtn);
-  // 新しいイベント設定
-  newOk.addEventListener('click', () => {
-    document.getElementById('confirm-modal').classList.remove('on');
-    cb();
-  });
-  newCancel.addEventListener('click', () => {
-    document.getElementById('confirm-modal').classList.remove('on');
-  });
-  document.getElementById('confirm-modal').classList.add('on');
-}
-function closeConfirm(){
-  document.getElementById('confirm-modal').classList.remove('on');
-}
+if (typeof module !== 'undefined' && module.exports){ module.exports = { Core }; }
 </script>
 </body>
 </html>
